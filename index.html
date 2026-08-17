@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiles Layout Planner</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .section-label {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin: 18px 0 8px;
+            border-left: 4px solid #2563eb;
+            padding-left: 8px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #34495e;
+            font-size: 14px;
+        }
+        label small {
+            font-weight: 400;
+            color: #94a3b8;
+        }
+        input, select {
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #1e293b;
+            color: white;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        button:hover {
+            background-color: #0f172a;
+        }
+        button:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
+        .actions {
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .actions .btn-primary {
+            width: 100%;
+            margin-top: 0;
+            background: #1d4ed8;
+        }
+        .actions .btn-primary:hover { background: #1e40af; }
+        .actions-secondary {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-ghost {
+            background: #fff;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            font-size: 13px;
+            padding: 10px 12px;
+        }
+        .btn-ghost:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #1e293b;
+        }
+
+        /* Room editor rows. min-width:0 on the children is essential - grid
+           items default to min-content, and a form input's min-content is wide
+           enough to blow the track out past the viewport on a phone. */
+        .room-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 84px 84px;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+        }
+        /* The extra tracks exist only when view/remove are rendered, which is
+           only when there is more than one room. */
+        .room-row.has-actions {
+            grid-template-columns: minmax(0, 1fr) 84px 84px auto auto;
+        }
+        .room-row > * { min-width: 0; }
+        .room-row input { width: 100%; }
+        .room-head {
+            padding: 0 8px 2px;
+            margin-bottom: 2px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table-wrap table { min-width: 100%; }
+
+        @media (max-width: 640px) {
+            body { padding: 10px; }
+            .container { padding: 16px; }
+            /* Name gets its own line; size + actions share the next. */
+            .room-row {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+            .room-row.has-actions {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+            }
+            .room-row .room-name { grid-column: 1 / -1; }
+            .room-head { display: none; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+        .actions-secondary .btn-ghost {
+            flex: 1 1 0;
+            min-width: 150px;
+            width: auto;
+            margin-top: 0;
+        }
+        .unit-toggle button {
+            width: auto;
+            margin: 0;
+            padding: 6px 12px;
+            font-size: 12px;
+            background: transparent;
+            color: #475569;
+        }
+        .unit-toggle button.active {
+            background: #7c3aed;
+            color: #fff;
+        }
+        .unit-toggle button:hover {
+            background-color: #7c3aed;
+            color: #fff;
+        }
+        .unit-toggle button.active:hover {
+            background-color: #7c3aed;
+        }
+        .mode-tabs {
+            display: flex;
+            gap: 6px;
+            background: #e2e8f0;
+            padding: 6px;
+            border-radius: 10px;
+            margin-top: 6px;
+        }
+        .mode-tabs button {
+            flex: 1;
+            margin: 0;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            background: transparent;
+            color: #475569;
+            border-radius: 7px;
+        }
+        .mode-tabs button.active {
+            background: #2563eb;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+        }
+        .mode-tabs button:hover {
+            background: #cbd5e1;
+            color: #1e293b;
+        }
+        .mode-tabs button.active:hover {
+            background: #1d4ed8;
+            color: #fff;
+        }
+        .container {
+            position: relative;
+        }
+        .error-box {
+            display: none;
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .results-section {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .order-summary {
+            width: 100%;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        .order-item .label {
+            font-size: 12px;
+            color: #1e40af;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .order-item .value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .order-item .value.highlight {
+            color: #2563eb;
+        }
+        .stats {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            background: #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-weight: 500;
+            gap: 8px;
+        }
+        canvas {
+            background-color: #fff;
+            max-width: 100%;
+            height: auto;
+        }
+        .legend {
+            margin-top: 15px;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .color-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📐 <span id="t_title">Tiles Layout Planner</span></h1>
+    <div class="subtitle" id="t_subtitle"></div>
+
+    <div class="mode-tabs">
+        <button id="modeFloorBtn" onclick="setMode('floor')" class="active"></button>
+        <button id="modeWallBtn" onclick="setMode('wall')"></button>
+    </div>
+    <div style="font-size:12px; color:#64748b; margin:8px 0 14px; text-align:center;" id="t_modeNote"></div>
+
+    <div class="section-label" id="t_sec1"></div>
+    <div class="form-grid">
+        <div class="input-group">
+            <label id="t_tilePreset"></label>
+            <select id="tilePreset" onchange="applyTilePreset()"></select>
+        </div>
+    </div>
+
+    <!-- Hidden mirrors of the currently-selected room, kept in sync by
+         syncActiveRoomInputs() so all downstream calculations stay unchanged. -->
+    <input type="hidden" id="roomL" value="10">
+    <input type="hidden" id="roomW" value="10">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px;">
+        <div class="section-label" id="t_roomsTitle" style="margin:0;"></div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <label id="t_inputUnit" style="margin:0; font-size:12px; color:#64748b;"></label>
+            <select id="inputUnit" onchange="setInputUnit(this.value)" style="padding:6px 8px; font-size:13px;">
+                <option value="ft">ft (decimal)</option>
+                <option value="ftin">ft-in (10'6")</option>
+                <option value="in">inch</option>
+                <option value="m">meter</option>
+                <option value="mm">mm</option>
+            </select>
+        </div>
+    </div>
+    <div style="font-size:12px; color:#64748b; margin-bottom:10px;" id="t_roomsNote"></div>
+    <div id="roomsEditor"></div>
+    <button type="button" onclick="addRoom()" id="t_addRoomBtn" class="btn-ghost" style="width:auto; margin-top:10px; padding:9px 16px; font-size:13px;"></button>
+
+    <details id="advancedSection" style="margin-top:14px; border:1px solid #cbd5e1; border-radius:8px; padding:10px 14px; background:#f8fafc;">
+        <summary style="cursor:pointer; font-weight:700; color:#334155; font-size:14px;" id="t_advancedSummary"></summary>
+        <div class="form-grid" style="margin-top:12px;">
+            <div class="input-group">
+                <label id="t_tileL"></label>
+                <input type="number" id="tileL" value="4" step="0.01" min="0.1">
+            </div>
+            <div class="input-group">
+                <label id="t_tileW"></label>
+                <input type="number" id="tileW" value="2" step="0.01" min="0.1">
+            </div>
+            <div class="input-group">
+                <label id="t_piecesPerBox"></label>
+                <input type="number" id="piecesPerBox" value="2" step="1" min="1">
+            </div>
+            <div class="input-group">
+                <label id="t_boxCoverageAuto"></label>
+                <input type="text" id="boxCoverageDisplay" value="—" disabled style="background:#e2e8f0; color:#334155; font-weight:600;">
+            </div>
+            <div class="input-group">
+                <label id="t_spacer"></label>
+                <input type="number" id="spacer" value="3" step="0.5" min="0">
+            </div>
+            <div class="input-group">
+                <label id="t_layoutType"></label>
+                <select id="layoutType">
+                    <option value="center" id="t_opt_center"></option>
+                    <option value="tl" id="t_opt_tl"></option>
+                    <option value="tr" id="t_opt_tr"></option>
+                    <option value="bl" id="t_opt_bl"></option>
+                    <option value="br" id="t_opt_br"></option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label id="t_handling"></label>
+                <input type="number" id="handling" value="5" step="1" min="0" max="30">
+            </div>
+            <div class="input-group">
+                <label id="t_autoWasteLabel"></label>
+                <input type="text" id="autoWasteDisplay" value="—" disabled style="background:#e2e8f0; color:#334155; font-weight:600;">
+            </div>
+            <div class="input-group">
+                <label id="t_ratePerBox"></label>
+                <input type="number" id="ratePerBox" value="0" step="10" min="0">
+            </div>
+            <div class="input-group">
+                <label id="t_tileImage"></label>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <input type="file" id="tileImageInput" accept="image/*" multiple onchange="handleTileImage(event)" style="flex:1; min-width:0;">
+                    <button type="button" onclick="clearTileImage()" id="t_clearImageBtn" title="Remove photo" class="btn-ghost" style="width:auto; margin:0; padding:10px 12px; flex-shrink:0;">✕</button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label id="t_skirting"></label>
+                <select id="skirtingOn" onchange="calculateAndDraw()">
+                    <option value="no">No skirting</option>
+                    <option value="yes">Include skirting</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label id="t_skirtHeight"></label>
+                <input type="number" id="skirtHeight" value="100" step="5" min="25" max="300">
+            </div>
+            <div class="input-group">
+                <label id="t_doorWidth"></label>
+                <input type="number" id="doorWidth" value="0" step="0.5" min="0">
+            </div>
+        </div>
+    </details>
+
+    <details id="openingsSection" style="margin-top:10px; border:1px solid #cbd5e1; border-radius:8px; padding:10px 14px; background:#f8fafc;">
+        <summary style="cursor:pointer; font-weight:700; color:#334155; font-size:14px;" id="t_sec4"></summary>
+        <div style="font-size:12px; color:#64748b; margin:10px 0;" id="t_openingNote"></div>
+        <div class="form-grid" style="align-items:end;">
+            <div class="input-group">
+                <label id="t_openName"></label>
+                <input type="text" id="openName" placeholder="Window / Door / Switchboard">
+            </div>
+            <div class="input-group">
+                <label id="t_openW"></label>
+                <input type="number" id="openW" step="0.1" min="0.1" value="4">
+            </div>
+            <div class="input-group">
+                <label id="t_openH"></label>
+                <input type="number" id="openH" step="0.1" min="0.1" value="3">
+            </div>
+            <div class="input-group">
+                <label id="t_openX"></label>
+                <input type="number" id="openX" step="0.1" min="0" value="2">
+            </div>
+            <div class="input-group">
+                <label id="t_openY"></label>
+                <input type="number" id="openY" step="0.1" min="0" value="3">
+            </div>
+            <div class="input-group">
+                <button type="button" onclick="addOpening()" id="t_addOpenBtn" class="btn-ghost" style="width:auto; padding:9px 16px; font-size:13px;"></button>
+            </div>
+        </div>
+        <div id="openingsListSection" style="display:none; margin-top:10px; flex-wrap:wrap; gap:8px;"></div>
+    </details>
+
+    <div class="actions">
+        <button onclick="calculateAndDraw()" id="t_renderBtn" class="btn-primary"></button>
+        <div class="actions-secondary">
+            <button onclick="compareLayouts()" id="t_compareBtn" class="btn-ghost"></button>
+            <button onclick="compareWastage()" id="t_wasteCompareBtn" class="btn-ghost"></button>
+            <button onclick="downloadReport()" id="t_reportBtn" class="btn-ghost"></button>
+        </div>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="results-section">
+        <div id="wasteCompareSection" style="display:none; width:100%; margin-bottom:20px;">
+            <div class="section-label" id="t_wasteCompareTitle"></div>
+            <div class="table-wrap"><table id="wasteCompareTable" style="width:100%; border-collapse:collapse; font-size:14px;"></table></div>
+            <div style="margin-top:8px; font-size:12px; color:#64748b;" id="t_wasteCompareNote"></div>
+        </div>
+        <div id="manualCompareSection" style="width:100%; margin-bottom:20px;">
+            <div class="section-label" id="t_manualCompareTitle"></div>
+            <div class="table-wrap"><table id="manualCompareTable" style="width:100%; border-collapse:collapse; font-size:14px;"></table></div>
+            <div style="margin-top:8px; font-size:12px; color:#64748b;" id="t_manualCompareNote"></div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px;">
+                <div style="text-align:center; border:2px solid #fca5a5; border-radius:8px; padding:8px; background:#fef2f2;">
+                    <div style="font-size:12px; font-weight:700; color:#991b1b; margin-bottom:6px;" id="t_naiveGridCaption"></div>
+                    <canvas id="naiveCanvas" style="border:2px solid #1e293b; max-width:100%; height:auto; background:#fff;"></canvas>
+                    <div style="font-size:11px; color:#64748b; margin-top:6px;" id="t_naiveGridSub"></div>
+                </div>
+                <div style="text-align:center; border:2px solid #93c5fd; border-radius:8px; padding:8px; background:#eff6ff;">
+                    <div style="font-size:12px; font-weight:700; color:#1e40af; margin-bottom:6px;" id="t_appGridCaption"></div>
+                    <canvas id="appMiniCanvas" style="border:2px solid #1e293b; max-width:100%; height:auto; background:#fff;"></canvas>
+                    <div style="font-size:11px; color:#64748b; margin-top:6px;" id="t_appGridSub"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="compareSection" style="display:none; width:100%; margin-bottom:20px;">
+            <div class="section-label" id="t_compareTitle"></div>
+            <div class="table-wrap"><table id="compareTable" style="width:100%; border-collapse:collapse; font-size:14px; margin-bottom:16px;"></table></div>
+            <div id="compareGrids" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px;"></div>
+        </div>
+
+        <div id="skirtingSection" style="display:none; width:100%; margin-bottom:20px;">
+            <div class="section-label" id="t_skirtTitle"></div>
+            <div class="table-wrap"><table id="skirtingTable" style="width:100%; border-collapse:collapse; font-size:14px;"></table></div>
+            <div style="margin-top:8px; font-size:12px; color:#64748b;" id="t_skirtNote"></div>
+        </div>
+
+        <div id="combinedRoomsSection" style="display:none; width:100%; margin-bottom:20px;">
+            <div class="section-label" id="t_combinedTitle"></div>
+            <div id="roomsGallery" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:16px;"></div>
+            <div class="table-wrap"><table id="combinedRoomsTable" style="width:100%; border-collapse:collapse; font-size:14px;"></table></div>
+        </div>
+
+        <div class="order-summary" id="orderSummary"></div>
+
+        <div class="stats" id="statsBox"></div>
+
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:10px;">
+            <div class="unit-toggle" style="display:flex; gap:4px; background:#e2e8f0; padding:4px; border-radius:8px; margin:0;">
+                <button id="unitFtBtn" onclick="setUnit('ft')" class="active">ft</button>
+                <button id="unitFtInBtn" onclick="setUnit('ftin')">ft-in</button>
+                <button id="unitMmBtn" onclick="setUnit('mm')">mm</button>
+            </div>
+            <button type="button" onclick="swapTileOrientation()" id="t_orientBtn" class="btn-ghost" style="width:auto; margin:0; padding:9px 14px; font-size:13px;"></button>
+        </div>
+
+        <canvas id="layoutCanvas" width="600" height="600"></canvas>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="color-box" style="background-color: #93c5fd; border: 1px solid #2563eb;"></div>
+                <span id="t_legendFull"></span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background-color: #fca5a5; border: 1px solid #ef4444;"></div>
+                <span id="t_legendCut"></span>
+            </div>
+        </div>
+        <div style="margin-top:8px; font-size:12px; color:#64748b; text-align:center;" id="t_labelNote"></div>
+        <div id="patternLegend" style="display:none; margin-top:10px; flex-wrap:wrap; gap:10px; justify-content:center;"></div>
+    </div>
+</div>
+
+<script>
+const I18N = {
+    en: {
+        title: 'Tiles Layout Planner',
+        subtitle: 'Room size → Layout → Boxes to order',
+        sec1: '🎨 Room Size & Tile Choice',
+        tilePreset: 'Tile Size (standard sizes)',
+        modeFloor: '🟦 Floor Tiles',
+        modeWall: '🧱 Wall Tiles',
+        modeNoteFloor: 'Floor tiling — room length × width (plan view).',
+        modeNoteWall: 'Wall tiling — wall width × height (elevation view). Wall and floor are separate SKUs, so their box counts are kept separate.',
+        inputUnitLabel: 'Input unit:',
+        roomsTitleFloor: '🏠 Rooms',
+        roomsTitleWall: '🧱 Walls',
+        dimLenFloor: 'Length (ft)',
+        dimWidFloor: 'Width (ft)',
+        dimLenWall: 'Wall Width (ft)',
+        dimWidWall: 'Wall Height (ft)',
+        roomsTitle: '🏠 Rooms',
+        roomsNote: 'Edit each room\'s name and size directly. Press 👁 to choose which room shows the detailed layout below.',
+        viewBtn: 'View',
+        viewing: 'Viewing',
+        advancedSummary: '⚙️ Advanced settings (spacer, layout, rate, photo) — only if you need them',
+        roomL: 'Primary Room Length (ft)',
+        roomW: 'Primary Room Width (ft)',
+        tileL: 'Tile Length (ft)',
+        tileW: 'Tile Width (ft)',
+        spacer: 'Grout Spacer Gap (mm)',
+        layoutType: 'Layout Alignment',
+        opt_center: 'Center-Balanced',
+        opt_tl: 'Corner Start - Top-Left',
+        opt_tr: 'Corner Start - Top-Right',
+        opt_bl: 'Corner Start - Bottom-Left',
+        opt_br: 'Corner Start - Bottom-Right',
+        tileImage: 'Upload Tile Pattern Photos (multiple allowed)',
+        patternLegendLabel: 'Patterns in use (never repeats on adjacent tiles)',
+        clearImageBtn: '✕ Remove Photo',
+        sec2: 'Order Calculation',
+        sec3: 'Multiple Rooms (Optional)',
+        multiRoomNote: 'The primary room above is already included in the combined order. Add only the EXTRA rooms here (Bedroom, Kitchen, etc.) — they share the same tile size/spacer set above.',
+        sec4: '🚪 Openings — Window / Door / Fixture (Wall Tiling)',
+        openingNote: 'For wall tiling. Tiles aren\'t needed where a window or door sits — that area is removed from the count. Measure position from the BOTTOM-LEFT corner of the wall.',
+        openName: 'Opening Name',
+        openW: 'Width (ft)',
+        openH: 'Height (ft)',
+        openX: 'From Left (ft)',
+        openY: 'From Bottom (ft)',
+        addOpenBtn: '+ Add Opening',
+        openingsSaved: 'tiles saved by openings',
+        openingArea: 'Opening Area',
+        roomName: 'Room Name',
+        roomAddL: 'Length (ft)',
+        roomAddW: 'Width (ft)',
+        addRoomBtn: '+ Add Room',
+        col_roomName: 'Room',
+        col_size: 'Size',
+        removeRoom: 'Remove',
+        combinedTitle: '🏠 Combined Order — All Rooms',
+        row_combinedTotal: 'Combined Order (all rooms pooled)',
+        row_separateTotal: 'If Ordered Separately',
+        boxesSaved: 'boxes saved by pooling into one order',
+        reportBtn: '📄 Download Report',
+        reportTitle: 'Tile Order Report',
+        reportDate: 'Date',
+        reportTileSpec: 'Tile Specification',
+        reportRoomBreakdown: 'Room-wise Breakdown',
+        reportGrandTotal: 'Grand Total Order',
+        piecesPerBox: 'Pieces per Box (pcs/box)',
+        boxCoverageAuto: 'Box Coverage (auto sq.ft)',
+        handling: 'Handling/Breakage Buffer %',
+        autoWasteLabel: 'Cut Wastage (auto-calculated)',
+        ratePerBox: 'Rate per Box (₹, optional)',
+        renderBtn: 'Calculate & Render Layout',
+        compareBtn: '⇄ Compare All Layouts',
+        wasteCompareBtn: '% Compare Handling Buffer %',
+        wasteCompareTitle: '📉 Handling Buffer % — How Much Do Boxes Change?',
+        wasteCompareNote: 'Applies to the currently selected layout (dropdown) only. Cut/geometric wastage % does NOT change here — that\'s fixed by the layout, not the buffer.',
+        col_handling: 'Handling %',
+        col_current: '← Current',
+        compareTitle: 'Layout Comparison — Which Wastes Least?',
+        manualCompareTitle: '📊 Manual Calculation vs This App',
+        manualCompareNote: 'Manual method: total area ÷ tile area — doesn\'t account for cut-piece loss or spacer gaps.',
+        col_method: 'Method',
+        col_pieces: 'Pieces',
+        col_boxes: 'Boxes',
+        row_manual: 'Manual (napkin math)',
+        row_app: 'This App (grid simulation)',
+        row_gap: 'Gap',
+        gapUnder: 'boxes short if you order by the manual method',
+        gapNone: 'No shortfall',
+        naiveGridCaption: '⚠️ Manual Assumption (full tiles only)',
+        naiveGridSub: 'White gap = the edge it never planned a cut for',
+        appGridCaption: '✓ This App\'s Actual Grid',
+        appGridSub: 'Room fully covered — red = cut piece',
+        col_layout: 'Layout',
+        col_full: 'Full',
+        col_cut: 'Cut',
+        col_waste: 'Waste %',
+        col_sliver: 'Smallest Edge Piece',
+        skirting: 'Skirting',
+        skirtHeight: 'Skirting Height (mm)',
+        doorWidth: 'Door Width to Deduct (ft, per room)',
+        skirtTitle: '📏 Skirting Quantity',
+        skirtPerimeter: 'Perimeter',
+        skirtTiles: 'Tiles if alone',
+        skirtBoxes: 'Skirting Boxes to Order',
+        skirtNote: 'Strips are cut across the tile\'s short side:',
+        skirtTooTall: '⚠️ Skirting height is larger than the tile — no strip can be cut from this tile. Use a shorter skirting or a bigger tile.',
+        orientation: 'Tile Direction',
+        orientBtn: '⟳ Rotate 90°',
+        orientLong: 'long side along length',
+        orientShort: 'long side along width',
+        layoutCompareNote: '⚠️ Important: changing the layout does NOT change the total tile or box count — that is geometrically fixed. What changes is the SIZE of the edge cuts. A sliver under 1/3 of a tile (shown red) is hard to cut, snaps easily, and looks bad. Masons pick center-balanced for this reason, even though it shows more cut pieces.',
+        col_cost: 'Cost',
+        bestTag: '✓ Best',
+        legendFull: 'Full Tile',
+        legendCut: 'Cut Piece',
+        labelNote: 'Each tile shows its actual laid size — cut pieces show the real cut dimension for the mason.',
+        err_room: 'Room dimensions must be greater than 0.',
+        err_tile: 'Tile dimensions must be greater than 0.',
+        err_spacer: 'Spacer value is invalid.',
+        err_box: 'Pieces per box must be a whole number of 1 or more.',
+        err_tiny: 'Tile + spacer size is too small. Please check your values.',
+        boxesNeeded: 'Boxes to Order',
+        pieces: 'Needed / Shipped Pieces',
+        areaWithWastage: 'Total Area (incl. buffer)',
+        estCost: 'Estimated Cost',
+        roomArea: 'Room Area',
+        fullTiles: 'Full Tiles',
+        cutTiles: 'Cut Pieces'
+    }
+};
+
+let currentLang = 'en';
+
+function setLang(lang) {
+    currentLang = lang;
+    const t = I18N[lang];
+    document.getElementById('t_title').textContent = t.title;
+    document.getElementById('t_subtitle').textContent = t.subtitle;
+    document.getElementById('t_sec1').textContent = t.sec1;
+    document.getElementById('t_tilePreset').textContent = t.tilePreset;
+    document.getElementById('t_orientBtn').textContent = t.orientBtn;
+    document.getElementById('t_skirting').textContent = t.skirting;
+    document.getElementById('t_skirtHeight').textContent = t.skirtHeight;
+    document.getElementById('t_doorWidth').textContent = t.doorWidth;
+    document.getElementById('t_skirtTitle').textContent = t.skirtTitle;
+    document.getElementById('t_roomsTitle').textContent = currentMode === 'wall' ? t.roomsTitleWall : t.roomsTitleFloor;
+    document.getElementById('t_roomsNote').textContent = t.roomsNote;
+    document.getElementById('t_inputUnit').textContent = t.inputUnitLabel;
+    document.getElementById('modeFloorBtn').textContent = t.modeFloor;
+    document.getElementById('modeWallBtn').textContent = t.modeWall;
+    document.getElementById('t_modeNote').textContent = currentMode === 'wall' ? t.modeNoteWall : t.modeNoteFloor;
+    document.getElementById('t_advancedSummary').textContent = t.advancedSummary;
+    document.getElementById('t_tileL').textContent = t.tileL;
+    document.getElementById('t_tileW').textContent = t.tileW;
+    document.getElementById('t_spacer').textContent = t.spacer;
+    document.getElementById('t_layoutType').textContent = t.layoutType;
+    document.getElementById('t_opt_center').textContent = t.opt_center;
+    document.getElementById('t_opt_tl').textContent = t.opt_tl;
+    document.getElementById('t_opt_tr').textContent = t.opt_tr;
+    document.getElementById('t_opt_bl').textContent = t.opt_bl;
+    document.getElementById('t_opt_br').textContent = t.opt_br;
+    document.getElementById('t_tileImage').textContent = t.tileImage;
+    document.getElementById('t_sec4').textContent = t.sec4;
+    document.getElementById('t_openingNote').textContent = t.openingNote;
+    document.getElementById('t_openName').textContent = t.openName;
+    document.getElementById('t_openW').textContent = t.openW;
+    document.getElementById('t_openH').textContent = t.openH;
+    document.getElementById('t_openX').textContent = t.openX;
+    document.getElementById('t_openY').textContent = t.openY;
+    document.getElementById('t_addOpenBtn').textContent = t.addOpenBtn;
+    document.getElementById('t_addRoomBtn').textContent = t.addRoomBtn;
+    document.getElementById('t_reportBtn').textContent = t.reportBtn;
+    document.getElementById('t_clearImageBtn').title = t.clearImageBtn;
+    document.getElementById('t_combinedTitle').textContent = t.combinedTitle;
+    document.getElementById('t_piecesPerBox').textContent = t.piecesPerBox;
+    document.getElementById('t_boxCoverageAuto').textContent = t.boxCoverageAuto;
+    document.getElementById('t_handling').textContent = t.handling;
+    document.getElementById('t_autoWasteLabel').textContent = t.autoWasteLabel;
+    document.getElementById('t_ratePerBox').textContent = t.ratePerBox;
+    document.getElementById('t_renderBtn').textContent = t.renderBtn;
+    document.getElementById('t_compareBtn').textContent = t.compareBtn;
+    document.getElementById('t_wasteCompareBtn').textContent = t.wasteCompareBtn;
+    document.getElementById('t_wasteCompareTitle').textContent = t.wasteCompareTitle;
+    document.getElementById('t_wasteCompareNote').textContent = t.wasteCompareNote;
+    document.getElementById('t_compareTitle').textContent = t.compareTitle;
+    document.getElementById('t_manualCompareTitle').textContent = t.manualCompareTitle;
+    document.getElementById('t_manualCompareNote').textContent = t.manualCompareNote;
+    document.getElementById('t_naiveGridCaption').textContent = t.naiveGridCaption;
+    document.getElementById('t_naiveGridSub').textContent = t.naiveGridSub;
+    document.getElementById('t_appGridCaption').textContent = t.appGridCaption;
+    document.getElementById('t_appGridSub').textContent = t.appGridSub;
+    document.getElementById('t_legendFull').textContent = t.legendFull;
+    document.getElementById('t_legendCut').textContent = t.legendCut;
+    document.getElementById('t_labelNote').textContent = t.labelNote;
+    document.documentElement.lang = lang;
+    calculateAndDraw();
+}
+
+// Pure grid simulation, reusable for both single-render and multi-layout comparison.
+// Naive "napkin math" grid: places ONLY complete full tiles, top-left start,
+// and stops wherever a cut would be needed. This deliberately leaves visible
+// uncovered strips at the far edges - the physical consequence of a method
+// that never accounts for cut pieces at all.
+function simulateNaiveGrid(roomL, roomW, tileL, tileW, spacerFt) {
+    const stepX = tileL + spacerFt;
+    const stepY = tileW + spacerFt;
+    const cols = Math.floor((roomL + spacerFt) / stepX);
+    const rowsCount = Math.floor((roomW + spacerFt) / stepY);
+    const cells = [];
+    for (let c = 0; c < cols; c++) {
+        for (let r = 0; r < rowsCount; r++) {
+            cells.push({
+                drawX: c * stepX,
+                drawY: r * stepY,
+                drawW: tileL,
+                drawH: tileW,
+                isCut: false,
+                colIdx: c,
+                rowIdx: r
+            });
+        }
+    }
+    return { cells, coveredPieces: cols * rowsCount };
+}
+
+let openings = []; // { id, name, w, h, x, y } - x/y measured from BOTTOM-LEFT of the wall
+let openingIdCounter = 1;
+
+// Converts a stored opening (bottom-left origin, as a mason measures) into
+// canvas-space rect (top-left origin, as the grid is drawn).
+function openingToCanvasRect(op, roomW) {
+    return {
+        x1: op.x,
+        y1: roomW - (op.y + op.h), // flip vertical axis
+        x2: op.x + op.w,
+        y2: roomW - op.y
+    };
+}
+
+// Returns 'full' if the cell lies entirely inside an opening (no tile needed),
+// 'partial' if it is clipped by one (still consumes a whole source tile as a cut),
+// or 'none' if untouched.
+function cellOpeningState(cellX, cellY, cellW, cellH, rects) {
+    const cx2 = cellX + cellW, cy2 = cellY + cellH;
+    let partial = false;
+    for (const r of rects) {
+        const overlapW = Math.min(cx2, r.x2) - Math.max(cellX, r.x1);
+        const overlapH = Math.min(cy2, r.y2) - Math.max(cellY, r.y1);
+        if (overlapW > 0.01 && overlapH > 0.01) {
+            // fully swallowed by this opening?
+            if (cellX >= r.x1 - 0.01 && cy2 <= r.y2 + 0.01 &&
+                cx2 <= r.x2 + 0.01 && cellY >= r.y1 - 0.01) {
+                return 'full';
+            }
+            partial = true;
+        }
+    }
+    return partial ? 'partial' : 'none';
+}
+
+function simulateGrid(layoutType, roomL, roomW, tileL, tileW, spacerFt, openingRects) {
+    const stepX = tileL + spacerFt;
+    const stepY = tileW + spacerFt;
+    let startX = 0;
+    let startY = 0;
+
+    if (layoutType === 'center') {
+        const remainderX = roomL % stepX;
+        const remainderY = roomW % stepY;
+        startX = remainderX > 0.01 ? -((stepX - remainderX) / 2) : 0;
+        startY = remainderY > 0.01 ? -((stepY - remainderY) / 2) : 0;
+    } else if (layoutType === 'tr') {
+        const remainderX = roomL % stepX;
+        startX = remainderX > 0.01 ? -(stepX - remainderX) : 0;
+    } else if (layoutType === 'bl') {
+        const remainderY = roomW % stepY;
+        startY = remainderY > 0.01 ? -(stepY - remainderY) : 0;
+    } else if (layoutType === 'br') {
+        const remainderX = roomL % stepX;
+        const remainderY = roomW % stepY;
+        startX = remainderX > 0.01 ? -(stepX - remainderX) : 0;
+        startY = remainderY > 0.01 ? -(stepY - remainderY) : 0;
+    }
+
+    let fullTiles = 0;
+    let cutTiles = 0;
+    const cells = [];
+    let colIdx = 0;
+
+    for (let x = startX; x < roomL; x += stepX) {
+        let rowIdx = 0;
+        for (let y = startY; y < roomW; y += stepY) {
+            const drawX = Math.max(0, x);
+            const drawY = Math.max(0, y);
+            const drawW = Math.min(tileL, roomL - drawX, (x + tileL) - drawX);
+            const drawH = Math.min(tileW, roomW - drawY, (y + tileW) - drawY);
+
+            if (drawW > 0.01 && drawH > 0.01) {
+                const rects = openingRects || [];
+                const opState = rects.length
+                    ? cellOpeningState(drawX, drawY, drawW, drawH, rects)
+                    : 'none';
+
+                if (opState === 'full') {
+                    // Entirely behind a window/door - no tile is laid here at all.
+                    rowIdx++;
+                    continue;
+                }
+
+                // A tile clipped by an opening still has to be cut on site,
+                // so it counts as a cut piece and consumes a whole source tile.
+                const isCut = opState === 'partial' ||
+                    (drawW < tileL - 0.05) || (drawH < tileW - 0.05);
+                if (isCut) cutTiles++; else fullTiles++;
+                cells.push({ drawX, drawY, drawW, drawH, isCut, colIdx, rowIdx });
+            }
+            rowIdx++;
+        }
+        colIdx++;
+    }
+    return { fullTiles, cutTiles, cells };
+}
+
+// Pure order-quantity math, reusable for both single-render and comparison.
+// Shared math core - takes raw piece/area totals directly so it can be reused
+// for a single room OR a pooled total across multiple rooms.
+function computeOrderCore(piecesToBuy, tileAreaEach, totalSqFt, piecesPerBox, handlingPct, ratePerBox) {
+    const rawAreaNeeded = piecesToBuy * tileAreaEach;
+    const geometricWastePct = totalSqFt > 0 ? ((rawAreaNeeded - totalSqFt) / totalSqFt) * 100 : 0;
+    const piecesWithBuffer = Math.ceil(piecesToBuy * (1 + handlingPct / 100));
+    const boxesNeeded = Math.ceil(piecesWithBuffer / piecesPerBox);
+    const totalPiecesShipped = boxesNeeded * piecesPerBox;
+    const areaWithBuffer = totalPiecesShipped * tileAreaEach;
+    const boxCoverageSqFt = piecesPerBox * tileAreaEach;
+    const estimatedCost = boxesNeeded * ratePerBox;
+    return {
+        piecesToBuy, tileAreaEach, totalSqFt, geometricWastePct,
+        piecesWithBuffer, boxesNeeded, totalPiecesShipped, areaWithBuffer,
+        boxCoverageSqFt, estimatedCost
+    };
+}
+
+function computeOrder(fullTiles, cutTiles, tileL, tileW, roomL, roomW, piecesPerBox, handlingPct, ratePerBox, netAreaOverride) {
+    const piecesToBuy = fullTiles + cutTiles;
+    const tileAreaEach = tileL * tileW;
+    // When openings are present, the area actually needing tile is smaller than
+    // the raw wall rectangle - otherwise wastage % would be overstated.
+    const totalSqFt = (netAreaOverride !== undefined && netAreaOverride !== null)
+        ? netAreaOverride
+        : roomL * roomW;
+    return computeOrderCore(piecesToBuy, tileAreaEach, totalSqFt, piecesPerBox, handlingPct, ratePerBox);
+}
+
+function getOpeningsArea() {
+    return openings.reduce((sum, o) => sum + o.w * o.h, 0);
+}
+
+function readInputsOrShowError(t) {
+    const errorBox = document.getElementById('errorBox');
+    errorBox.style.display = 'none';
+
+    const roomL = parseFloat(document.getElementById('roomL').value);
+    const roomW = parseFloat(document.getElementById('roomW').value);
+    const tileL = parseFloat(document.getElementById('tileL').value);
+    const tileW = parseFloat(document.getElementById('tileW').value);
+    const spacerMm = parseFloat(document.getElementById('spacer').value);
+    const piecesPerBox = parseFloat(document.getElementById('piecesPerBox').value);
+    const handlingPctRaw = parseFloat(document.getElementById('handling').value);
+    const handlingPct = isNaN(handlingPctRaw) ? 0 : handlingPctRaw;
+    const ratePerBox = parseFloat(document.getElementById('ratePerBox').value) || 0;
+
+    const problems = [];
+    if (!(roomL > 0) || !(roomW > 0)) problems.push(t.err_room);
+    if (!(tileL > 0) || !(tileW > 0)) problems.push(t.err_tile);
+    if (!(spacerMm >= 0)) problems.push(t.err_spacer);
+    if (!(piecesPerBox > 0) || !Number.isInteger(piecesPerBox)) problems.push(t.err_box);
+
+    if (problems.length > 0) {
+        errorBox.innerHTML = '⚠️ ' + problems.join('<br>');
+        errorBox.style.display = 'block';
+        return null;
+    }
+
+    const spacerFt = spacerMm / 304.8;
+    const stepX = tileL + spacerFt;
+    const stepY = tileW + spacerFt;
+    if (stepX < 0.05 || stepY < 0.05) {
+        errorBox.innerHTML = '⚠️ ' + t.err_tiny;
+        errorBox.style.display = 'block';
+        return null;
+    }
+
+    return { roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox };
+}
+
+// Common Indian tile sizes. Sizes stored in mm (the real spec); pcs/box is the
+// TYPICAL value - it varies by brand, so it stays editable in Advanced.
+const TILE_PRESETS = [
+    { id: '300x300', mm: [300, 300], pcs: 12, use: 'floor', label: '300×300 mm (1×1 ft)' },
+    { id: '600x600', mm: [600, 600], pcs: 4, use: 'floor', label: '600×600 mm (2×2 ft) ★' },
+    { id: '600x1200', mm: [600, 1200], pcs: 2, use: 'floor', label: '600×1200 mm (2×4 ft)' },
+    { id: '800x800', mm: [800, 800], pcs: 3, use: 'floor', label: '800×800 mm' },
+    { id: '800x1200', mm: [800, 1200], pcs: 2, use: 'floor', label: '800×1200 mm — large format' },
+    { id: '1200x1200', mm: [1200, 1200], pcs: 2, use: 'floor', label: '1200×1200 mm — large format' },
+    { id: '200x300', mm: [200, 300], pcs: 20, use: 'wall', label: '200×300 mm' },
+    { id: '250x375', mm: [250, 375], pcs: 12, use: 'wall', label: '250×375 mm' },
+    { id: '300x450', mm: [300, 450], pcs: 8, use: 'wall', label: '300×450 mm (1×1.5 ft) ★' },
+    { id: '300x600', mm: [300, 600], pcs: 6, use: 'wall', label: '300×600 mm (1×2 ft)' },
+    { id: '600x1200w', mm: [600, 1200], pcs: 2, use: 'wall', label: '600×1200 mm — large format wall' },
+    { id: 'custom', mm: null, pcs: null, use: 'both', label: 'Custom (set in Advanced)' }
+];
+
+const DEFAULT_PRESET = { floor: '600x600', wall: '300x450' };
+const MM_PER_FT = 304.8;
+
+function populateTilePresets() {
+    const sel = document.getElementById('tilePreset');
+    const previous = sel.value;
+    sel.innerHTML = '';
+    for (const p of TILE_PRESETS) {
+        if (p.use !== currentMode && p.use !== 'both') continue;
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.label;
+        sel.appendChild(opt);
+    }
+    // keep the previous choice if it's valid in this mode, else use the default
+    const stillValid = Array.from(sel.options).some(o => o.value === previous);
+    sel.value = stillValid ? previous : DEFAULT_PRESET[currentMode];
+}
+
+// Flips which tile edge runs along the room's length. For a 2x4 tile this is a
+// real design decision, not a formality - it changes the cut pattern and how
+// the room reads visually.
+function swapTileOrientation() {
+    const lEl = document.getElementById('tileL');
+    const wEl = document.getElementById('tileW');
+    const tmp = lEl.value;
+    lEl.value = wEl.value;
+    wEl.value = tmp;
+    calculateAndDraw();
+}
+
+function applyTilePreset() {
+    const sel = document.getElementById('tilePreset');
+    const preset = TILE_PRESETS.find(p => p.id === sel.value);
+    if (!preset || !preset.mm) {
+        // 'custom' - leave the Advanced values alone and open the panel so the
+        // person can actually see the fields they now need to fill in.
+        document.getElementById('advancedSection').open = true;
+        calculateAndDraw();
+        return;
+    }
+    // Convert mm to feet precisely. 600mm is 1.9685 ft, NOT 2 ft - that ~1.5%
+    // difference is exactly what decides whether an edge cut appears.
+    document.getElementById('tileL').value = (preset.mm[1] / MM_PER_FT).toFixed(3);
+    document.getElementById('tileW').value = (preset.mm[0] / MM_PER_FT).toFixed(3);
+    document.getElementById('piecesPerBox').value = preset.pcs;
+    calculateAndDraw();
+}
+
+let currentUnit = 'ft';
+
+function setUnit(unit) {
+    currentUnit = unit;
+    document.getElementById('unitFtBtn').classList.toggle('active', unit === 'ft');
+    document.getElementById('unitFtInBtn').classList.toggle('active', unit === 'ftin');
+    document.getElementById('unitMmBtn').classList.toggle('active', unit === 'mm');
+    calculateAndDraw();
+}
+
+// Formats a dimension given in decimal feet into the chosen display unit.
+function formatDim(ft) {
+    if (currentUnit === 'mm') {
+        return Math.round(ft * 304.8) + 'mm';
+    }
+    if (currentUnit === 'ftin') {
+        const wholeFt = Math.floor(ft);
+        let inches = Math.round((ft - wholeFt) * 12);
+        let adjFt = wholeFt;
+        if (inches === 12) { inches = 0; adjFt += 1; }
+        return `${adjFt}'${inches}"`;
+    }
+    return ft.toFixed(2) + "'";
+}
+
+let tileImages = []; // uploaded tile pattern photos - multiple for wall tiles with several designs at the same size
+
+function handleTileImage(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    tileImages = []; // fresh upload replaces the previous pattern set
+    let loadedCount = 0;
+    const total = files.length;
+    for (let i = 0; i < total; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const img = new Image();
+            img.onload = function () {
+                tileImages[i] = img; // preserve upload order for stable pattern numbering
+                loadedCount++;
+                if (loadedCount === total) calculateAndDraw();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function clearTileImage() {
+    tileImages = [];
+    document.getElementById('tileImageInput').value = '';
+    calculateAndDraw();
+}
+
+function renderPatternLegend() {
+    const t = I18N[currentLang];
+    const legend = document.getElementById('patternLegend');
+    if (tileImages.length < 2) {
+        legend.style.display = 'none';
+        legend.innerHTML = '';
+        return;
+    }
+    legend.style.display = 'flex';
+    let html = `<div style="width:100%; text-align:center; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px;">${t.patternLegendLabel}</div>`;
+    tileImages.forEach((img, i) => {
+        if (!img) return;
+        html += `<div style="display:flex; align-items:center; gap:6px; font-size:12px; color:#475569;">
+            <img src="${img.src}" style="width:28px; height:28px; object-fit:cover; border:2px solid #1e3a8a; border-radius:4px;">
+            <span>Pattern ${i + 1}</span>
+        </div>`;
+    });
+    legend.innerHTML = html;
+}
+
+// Reusable canvas painter, used for the main layout and the mini comparison grids.
+// tileFullW/tileFullH (nominal tile size in ft) are needed to compute the crop
+// fraction of the uploaded photo for cut pieces - optional, only used when a pattern is active.
+const DIM_MARGIN = 34; // px reserved on the left/top for dimension annotations
+
+// Draws architectural-style overall dimension lines along the top and left,
+// so a printed layout carries the room size, not just per-tile sizes.
+function drawDimensionLines(ctx, roomL, roomW, scale, m) {
+    const wPx = roomL * scale;
+    const hPx = roomW * scale;
+    const off = 14; // distance from the grid edge to the dimension line
+
+    ctx.save();
+    ctx.strokeStyle = '#0f172a';
+    ctx.fillStyle = '#0f172a';
+    ctx.lineWidth = 1.2;
+    ctx.font = 'bold 13px "Segoe UI", Tahoma, sans-serif';
+
+    // --- top (length) ---
+    const ty = m - off;
+    ctx.beginPath();
+    ctx.moveTo(m, ty); ctx.lineTo(m + wPx, ty);
+    ctx.moveTo(m, ty - 5); ctx.lineTo(m, ty + 5);              // end tick
+    ctx.moveTo(m + wPx, ty - 5); ctx.lineTo(m + wPx, ty + 5);  // end tick
+    ctx.stroke();
+
+    const lenLabel = formatDim(roomL);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    const lw = ctx.measureText(lenLabel).width;
+    ctx.clearRect(m + wPx / 2 - lw / 2 - 4, ty - 8, lw + 8, 10); // clear line behind text
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(m + wPx / 2 - lw / 2 - 4, ty - 9, lw + 8, 12);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(lenLabel, m + wPx / 2, ty + 1);
+
+    // --- left (width/height) ---
+    const lx = m - off;
+    ctx.beginPath();
+    ctx.moveTo(lx, m); ctx.lineTo(lx, m + hPx);
+    ctx.moveTo(lx - 5, m); ctx.lineTo(lx + 5, m);
+    ctx.moveTo(lx - 5, m + hPx); ctx.lineTo(lx + 5, m + hPx);
+    ctx.stroke();
+
+    const widLabel = formatDim(roomW);
+    ctx.save();
+    ctx.translate(lx - 1, m + hPx / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    const ww = ctx.measureText(widLabel).width;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-ww / 2 - 4, -9, ww + 8, 12);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(widLabel, 0, 1);
+    ctx.restore();
+
+    ctx.restore();
+}
+
+function drawGrid(canvas, cells, scale, spacerFt, showLabels, tileFullW, tileFullH, openingRects, dims) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const M = dims ? DIM_MARGIN : 0;
+    ctx.save();
+    ctx.translate(M, M);
+
+    for (const cell of cells) {
+        const { drawX, drawY, drawW, drawH, isCut, colIdx, rowIdx } = cell;
+        const px = drawX * scale, py = drawY * scale;
+        const pw = drawW * scale, ph = drawH * scale;
+
+        // Diagonal pattern assignment: (col + row) % patternCount guarantees no
+        // two adjacent cells (left/right/up/down) ever get the same pattern,
+        // and it's deterministic - no reshuffling on unrelated re-renders.
+        const hasImages = tileImages.length > 0;
+        const patternIdx = hasImages && colIdx !== undefined && rowIdx !== undefined
+            ? (colIdx + rowIdx) % tileImages.length
+            : 0;
+        const activeImage = hasImages ? tileImages[patternIdx] : null;
+
+        if (activeImage) {
+            // Crop the source photo proportionally to how much of the physical
+            // tile survives the cut, so a cut piece shows a cut-looking crop
+            // instead of the full tile image squashed into a smaller box.
+            const fracW = tileFullW ? Math.min(1, drawW / tileFullW) : 1;
+            const fracH = tileFullH ? Math.min(1, drawH / tileFullH) : 1;
+            const srcW = activeImage.width * fracW;
+            const srcH = activeImage.height * fracH;
+            ctx.drawImage(activeImage, 0, 0, srcW, srcH, px, py, pw, ph);
+            if (isCut) {
+                ctx.fillStyle = 'rgba(220, 38, 38, 0.28)'; // red tint marks cut pieces over the photo
+                ctx.fillRect(px, py, pw, ph);
+            }
+        } else {
+            ctx.fillStyle = isCut ? '#fca5a5' : '#93c5fd';
+            ctx.fillRect(px, py, pw, ph);
+        }
+
+        ctx.strokeStyle = '#1e3a8a';
+        ctx.lineWidth = Math.max(1, spacerFt * scale);
+        ctx.strokeRect(px, py, pw, ph);
+
+        if (!showLabels) continue;
+        const cellPxW = pw;
+        const cellPxH = ph;
+        const fontSize = Math.max(7, Math.min(13, Math.min(cellPxW, cellPxH) * 0.22));
+        if (cellPxW > 22 && cellPxH > 14) {
+            ctx.fillStyle = activeImage ? '#ffffff' : (isCut ? '#7f1d1d' : '#1e3a8a');
+            ctx.shadowColor = activeImage ? 'rgba(0,0,0,0.8)' : 'transparent';
+            ctx.shadowBlur = activeImage ? 3 : 0;
+            ctx.font = `${fontSize}px 'Segoe UI', Tahoma, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = `${formatDim(drawW)}×${formatDim(drawH)}`;
+            ctx.fillText(label, px + cellPxW / 2, py + cellPxH / 2, cellPxW - 2);
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    // Paint openings last so they read as genuine holes punched through the
+    // tiled field, covering any tile edge that runs under them.
+    if (openingRects && openingRects.length) {
+        for (const r of openingRects) {
+            const ox = r.x1 * scale, oy = r.y1 * scale;
+            const ow = (r.x2 - r.x1) * scale, oh = (r.y2 - r.y1) * scale;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(ox, oy, ow, oh);
+            ctx.strokeStyle = '#b45309';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.strokeRect(ox, oy, ow, oh);
+            ctx.setLineDash([]);
+        }
+    }
+
+    ctx.restore(); // undo the dimension-margin translate
+
+    if (dims) {
+        // Outline the room itself, so the boundary reads as the wall/room edge
+        // rather than the edge of the image.
+        ctx.save();
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(M, M, dims.L * scale, dims.W * scale);
+        ctx.restore();
+        drawDimensionLines(ctx, dims.L, dims.W, scale, M);
+    }
+}
+
+// Skirting is cut as strips FROM the same tile, so the quantity is driven by
+// how many strips one tile yields - not by area. A 600x600 tile cut into 100mm
+// strips gives 6 strips of 600mm each = 3.6 running metres per tile.
+function renderSkirting(tileL, tileW, piecesPerBox, ratePerBox, handlingPct) {
+    const t = I18N[currentLang];
+    const section = document.getElementById('skirtingSection');
+    const on = document.getElementById('skirtingOn').value === 'yes';
+
+    if (!on || currentMode !== 'floor') {
+        section.style.display = 'none';
+        return;
+    }
+
+    const skirtMm = parseFloat(document.getElementById('skirtHeight').value);
+    const doorDeductFt = parseFloat(document.getElementById('doorWidth').value) || 0;
+    if (!(skirtMm > 0)) { section.style.display = 'none'; return; }
+
+    const skirtFt = skirtMm / MM_PER_FT;
+
+    // Strips are cut across the tile's SHORT side, running its LONG side,
+    // which is how a mason gets the most length out of each piece.
+    const tileLong = Math.max(tileL, tileW);
+    const tileShort = Math.min(tileL, tileW);
+    // Epsilon guard: 600mm/100mm evaluates to 5.999999999999999 in floating
+    // point, which would silently cost a strip on every clean-dividing size.
+    const stripsPerTile = Math.floor(tileShort / skirtFt + 1e-9);
+
+    if (stripsPerTile < 1) {
+        document.getElementById('skirtingTable').innerHTML =
+            `<tbody><tr><td style="padding:10px; color:#b91c1c; font-weight:600;">${t.skirtTooTall}</td></tr></tbody>`;
+        document.getElementById('t_skirtNote').textContent = '';
+        section.style.display = 'block';
+        return;
+    }
+
+    const runPerTile = stripsPerTile * tileLong; // running feet of skirting per tile
+
+    let rows = '';
+    let totalPerimeter = 0, totalTiles = 0;
+
+    for (const r of rooms) {
+        const rawPerim = 2 * (r.roomL + r.roomW);
+        const perim = Math.max(0, rawPerim - doorDeductFt);
+        const tilesNeeded = Math.ceil(perim / runPerTile);
+        totalPerimeter += perim;
+        totalTiles += tilesNeeded;
+        rows += `<tr>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.name}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${fromFt(r.roomL)} × ${fromFt(r.roomW)}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${perim.toFixed(1)} ft</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${tilesNeeded}</td>
+        </tr>`;
+    }
+
+    // Pool across rooms, then apply the same breakage buffer as the field tiles.
+    const pooledTiles = Math.ceil(totalPerimeter / runPerTile);
+    const withBuffer = Math.ceil(pooledTiles * (1 + handlingPct / 100));
+    const boxes = Math.ceil(withBuffer / piecesPerBox);
+    const cost = boxes * ratePerBox;
+
+    let html = `<thead><tr style="background:#f1f5f9; text-align:left;">
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${currentMode === 'wall' ? 'Wall' : 'Room'}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">Size</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.skirtPerimeter}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.skirtTiles}</th>
+    </tr></thead><tbody>${rows}
+        <tr style="background:#f8fafc; font-weight:700;">
+            <td style="padding:8px;">TOTAL</td>
+            <td style="padding:8px;">—</td>
+            <td style="padding:8px;">${totalPerimeter.toFixed(1)} ft</td>
+            <td style="padding:8px;">${pooledTiles} (pooled)</td>
+        </tr>
+        <tr style="background:#ecfdf5; font-weight:700;">
+            <td style="padding:8px;" colspan="2">${t.skirtBoxes}</td>
+            <td style="padding:8px;" colspan="2">${boxes} box(es) &nbsp;·&nbsp; ${withBuffer} tiles incl. ${handlingPct}% buffer${ratePerBox > 0 ? ` &nbsp;·&nbsp; ₹${cost.toLocaleString('en-IN')}` : ''}</td>
+        </tr>
+    </tbody>`;
+
+    document.getElementById('skirtingTable').innerHTML = html;
+    document.getElementById('t_skirtNote').textContent =
+        `${t.skirtNote} ${stripsPerTile} strips × ${fromFt(tileLong)} = ${runPerTile.toFixed(2)} ft of skirting per tile.`;
+    section.style.display = 'block';
+}
+
+// currently drawn in the big detailed canvas; it carries no special status
+// in the ordering math.
+// All room/opening dimensions are STORED in feet. The input unit only changes
+// how they're typed and displayed, so switching units never loses precision.
+let inputUnit = 'ft';
+
+const TO_FT = { ft: 1, in: 1 / 12, m: 3.280839895, mm: 1 / 304.8 };
+
+// Parses a value typed in the current input unit and returns feet.
+// Returns NaN if unparseable, so callers can reject it.
+function parseToFt(raw) {
+    if (raw === null || raw === undefined) return NaN;
+    const str = String(raw).trim();
+    if (str === '') return NaN;
+
+    if (inputUnit === 'ftin') {
+        // Accepts: 10'6"  |  10' 6  |  10-6  |  10 6  |  10'  |  10
+        const m = str.match(/^(-?\d+(?:\.\d+)?)\s*(?:['’]\s*)?(?:[-\s]\s*)?(\d+(?:\.\d+)?)?\s*(?:["”])?$/);
+        if (!m) return NaN;
+        const feet = parseFloat(m[1]);
+        const inches = m[2] !== undefined ? parseFloat(m[2]) : 0;
+        if (isNaN(feet) || inches >= 12) return NaN;
+        return feet + inches / 12;
+    }
+
+    const num = parseFloat(str);
+    if (isNaN(num)) return NaN;
+    return num * (TO_FT[inputUnit] || 1);
+}
+
+// Formats a stored feet value for display in the current input unit.
+function fromFt(ft) {
+    if (inputUnit === 'ftin') {
+        const whole = Math.floor(ft);
+        let inches = Math.round((ft - whole) * 12);
+        let adj = whole;
+        if (inches === 12) { inches = 0; adj += 1; }
+        return `${adj}'${inches}"`;
+    }
+    const val = ft / (TO_FT[inputUnit] || 1);
+    // mm/inch read better as whole numbers; ft/m need decimals
+    if (inputUnit === 'mm') return String(Math.round(val));
+    if (inputUnit === 'in') return String(Math.round(val * 10) / 10);
+    return String(Math.round(val * 1000) / 1000);
+}
+
+// Openings are stored in feet too, so switching units just re-renders them.
+function setInputUnit(unit) {
+    // Convert the standing opening-entry fields so a half-typed entry isn't
+    // silently reinterpreted in the new unit.
+    const openFields = ['openW', 'openH', 'openX', 'openY'];
+    const heldFt = openFields.map(id => parseToFt(document.getElementById(id).value));
+
+    inputUnit = unit;
+
+    openFields.forEach((id, i) => {
+        const el = document.getElementById(id);
+        el.type = unit === 'ftin' ? 'text' : 'number';
+        if (!isNaN(heldFt[i])) el.value = fromFt(heldFt[i]);
+        el.placeholder = unit === 'ftin' ? "10'6\"" : '';
+    });
+
+    calculateAndDraw();
+}
+
+
+// Wall and floor tiles are DIFFERENT products - their box counts must never
+// pool together. Each mode therefore keeps its own rooms, openings and tile
+// spec; switching tabs swaps the whole working set.
+let currentMode = 'floor';
+
+const MODE_INPUT_IDS = ['tilePreset', 'tileL', 'tileW', 'piecesPerBox', 'spacer', 'layoutType', 'handling', 'ratePerBox'];
+
+const modeState = {
+    floor: {
+        rooms: [{ id: 1, name: 'Room 1', roomL: 10, roomW: 10 }],
+        roomIdCounter: 2,
+        activeRoomId: 1,
+        openings: [],
+        openingIdCounter: 1,
+        inputs: null // populated lazily on first switch away
+    },
+    wall: {
+        rooms: [{ id: 1, name: 'Wall 1', roomL: 10, roomW: 8 }],
+        roomIdCounter: 2,
+        activeRoomId: 1,
+        openings: [],
+        openingIdCounter: 1,
+        inputs: null
+    }
+};
+
+function captureModeInputs() {
+    const snap = {};
+    for (const id of MODE_INPUT_IDS) {
+        const el = document.getElementById(id);
+        if (el) snap[id] = el.value;
+    }
+    return snap;
+}
+
+function restoreModeInputs(snap) {
+    if (!snap) return;
+    for (const id of MODE_INPUT_IDS) {
+        const el = document.getElementById(id);
+        if (el && snap[id] !== undefined) el.value = snap[id];
+    }
+}
+
+function setMode(mode) {
+    if (mode === currentMode) return;
+
+    // stash the outgoing mode's working set
+    const out = modeState[currentMode];
+    out.rooms = rooms;
+    out.roomIdCounter = roomIdCounter;
+    out.activeRoomId = activeRoomId;
+    out.openings = openings;
+    out.openingIdCounter = openingIdCounter;
+    out.inputs = captureModeInputs();
+
+    currentMode = mode;
+
+    // load the incoming mode's working set
+    const inn = modeState[mode];
+    rooms = inn.rooms;
+    roomIdCounter = inn.roomIdCounter;
+    activeRoomId = inn.activeRoomId;
+    openings = inn.openings;
+    openingIdCounter = inn.openingIdCounter;
+
+    document.getElementById('modeFloorBtn').classList.toggle('active', mode === 'floor');
+    document.getElementById('modeWallBtn').classList.toggle('active', mode === 'wall');
+
+    populateTilePresets();
+    if (inn.inputs) {
+        restoreModeInputs(inn.inputs);
+    } else {
+        document.getElementById('tilePreset').value = DEFAULT_PRESET[mode];
+    }
+
+    syncActiveRoomInputs();
+    setLang(currentLang); // relabels dimension fields for wall vs floor
+    applyTilePreset();
+}
+
+let rooms = [{ id: 1, name: 'Room 1', roomL: 10, roomW: 10 }];
+let roomIdCounter = 2;
+let activeRoomId = 1;
+
+function getActiveRoom() {
+    return rooms.find(r => r.id === activeRoomId) || rooms[0];
+}
+
+// Mirrors the selected room into the hidden roomL/roomW inputs so every
+// existing calculation path keeps reading from one consistent place.
+function syncActiveRoomInputs() {
+    const active = getActiveRoom();
+    if (!active) return;
+    document.getElementById('roomL').value = active.roomL;
+    document.getElementById('roomW').value = active.roomW;
+}
+
+function setActiveRoom(id) {
+    activeRoomId = id;
+    syncActiveRoomInputs();
+    calculateAndDraw();
+}
+
+function updateRoomField(id, field, value) {
+    const room = rooms.find(r => r.id === id);
+    if (!room) return;
+    if (field === 'name') {
+        room.name = value;
+    } else {
+        const ft = parseToFt(value); // interprets the value in the chosen input unit
+        if (!(ft > 0)) {
+            // Reject it and put the last good value back in that exact field,
+            // without rebuilding the editor and stealing focus from wherever
+            // the person has already tabbed to.
+            const inp = document.querySelector(`input[data-room-id="${id}"][data-field="${field}"]`);
+            if (inp) inp.value = fromFt(room[field]);
+            return;
+        }
+        room[field] = ft;
+    }
+    syncActiveRoomInputs();
+    calculateAndDraw();
+}
+
+// Rebuilding the editor wipes whatever the person is typing in, so only do it
+// when the STRUCTURE actually changed. Value-only updates are patched in place.
+let roomsEditorSignature = '';
+
+function roomsStructureSignature() {
+    return [rooms.map(r => r.id).join(','), currentMode, inputUnit, activeRoomId, currentLang].join('|');
+}
+
+function renderRoomsEditor() {
+    const t = I18N[currentLang];
+    const container = document.getElementById('roomsEditor');
+    const sig = roomsStructureSignature();
+
+    // Same structure: just refresh values on fields the person isn't editing,
+    // leaving focus, caret position and any half-typed text untouched.
+    if (sig === roomsEditorSignature && container.childElementCount > 0) {
+        for (const r of rooms) {
+            const row = container.querySelector(`[data-room-id="${r.id}"]`);
+            if (!row) continue;
+            row.querySelectorAll('input').forEach(inp => {
+                if (inp === document.activeElement) return; // never clobber the active field
+                if (inp.dataset.field === 'name') inp.value = r.name;
+                if (inp.dataset.field === 'roomL') inp.value = fromFt(r.roomL);
+                if (inp.dataset.field === 'roomW') inp.value = fromFt(r.roomW);
+            });
+        }
+        return;
+    }
+
+    // Structure changed - full rebuild, but remember where the caret was so a
+    // room being added doesn't throw the person back to the top of the page.
+    const prev = document.activeElement;
+    const restore = prev && prev.dataset && prev.dataset.roomId
+        ? { roomId: prev.dataset.roomId, field: prev.dataset.field, start: prev.selectionStart }
+        : null;
+
+    roomsEditorSignature = sig;
+    container.innerHTML = '';
+
+    const head = document.createElement('div');
+    head.className = rooms.length > 1 ? 'room-row room-head has-actions' : 'room-row room-head';
+    head.innerHTML = `
+        <span>${currentMode === 'wall' ? 'Wall name' : 'Room name'}</span>
+        <span>${currentMode === 'wall' ? t.dimLenWall : t.dimLenFloor}</span>
+        <span>${currentMode === 'wall' ? t.dimWidWall : t.dimWidFloor}</span>
+        ${rooms.length > 1 ? '<span></span><span></span>' : ''}
+    `;
+    container.appendChild(head);
+
+    // Enter behaves like Tab: commit and advance, which is how people fill a
+    // row of measurements without reaching for the mouse.
+    function onKey(e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        e.target.blur();
+        const fields = Array.from(container.querySelectorAll('input'));
+        const next = fields[fields.indexOf(e.target) + 1];
+        if (next) { next.focus(); next.select(); }
+    }
+
+    function selectAllOnFocus(e) {
+        // Measurements get replaced, not appended to - so pre-select the value.
+        if (e.target.dataset.field !== 'name') e.target.select();
+    }
+
+    for (const r of rooms) {
+        const isActive = r.id === activeRoomId;
+        const row = document.createElement('div');
+        row.className = rooms.length > 1 ? 'room-row has-actions' : 'room-row';
+        row.dataset.roomId = r.id;
+        row.style.cssText = `border:2px solid ${isActive ? '#2563eb' : '#e2e8f0'}; background:${isActive ? '#eff6ff' : '#fff'};`;
+
+        const mk = (field, value, title, isName) => {
+            const inp = document.createElement('input');
+            inp.type = isName ? 'text' : (inputUnit === 'ftin' ? 'text' : 'number');
+            if (!isName && inputUnit !== 'ftin') { inp.step = '0.1'; inp.min = '0'; }
+            if (!isName) inp.inputMode = inputUnit === 'ftin' ? 'text' : 'decimal';
+            inp.value = value;
+            inp.title = title;
+            inp.dataset.roomId = r.id;
+            inp.dataset.field = field;
+            inp.onfocus = selectAllOnFocus;
+            inp.onkeydown = onKey;
+            return inp;
+        };
+
+        const nameIn = mk('name', r.name, 'Name', true);
+        nameIn.className = 'room-name';
+        nameIn.placeholder = currentMode === 'wall' ? 'Bathroom N wall' : 'Hall / Bedroom / Kitchen';
+        nameIn.oninput = (e) => { const rr = rooms.find(x => x.id === r.id); if (rr) rr.name = e.target.value; };
+        nameIn.onchange = () => calculateAndDraw();
+        row.appendChild(nameIn);
+
+        const lIn = mk('roomL', fromFt(r.roomL), currentMode === 'wall' ? t.dimLenWall : t.dimLenFloor, false);
+        lIn.onchange = (e) => updateRoomField(r.id, 'roomL', e.target.value);
+        row.appendChild(lIn);
+
+        const wIn = mk('roomW', fromFt(r.roomW), currentMode === 'wall' ? t.dimWidWall : t.dimWidFloor, false);
+        wIn.onchange = (e) => updateRoomField(r.id, 'roomW', e.target.value);
+        row.appendChild(wIn);
+
+        // With a single room both of these are dead controls - it is already
+        // the one being viewed, and it cannot be removed. Rendering them just
+        // crowds the row, which matters most on a phone.
+        if (rooms.length > 1) {
+            const viewBtn = document.createElement('button');
+            viewBtn.type = 'button';
+            viewBtn.textContent = isActive ? '👁 ' + t.viewing : t.viewBtn;
+            viewBtn.onclick = () => setActiveRoom(r.id);
+            viewBtn.style.cssText = isActive
+                ? 'width:auto; margin:0; padding:8px 12px; font-size:12px; background:#1d4ed8; border:1px solid #1d4ed8;'
+                : 'width:auto; margin:0; padding:8px 12px; font-size:12px; background:#fff; color:#475569; border:1px solid #cbd5e1;';
+            row.appendChild(viewBtn);
+
+            const rmBtn = document.createElement('button');
+            rmBtn.type = 'button';
+            rmBtn.textContent = '✕';
+            rmBtn.title = t.removeRoom;
+            rmBtn.onclick = () => removeRoom(r.id);
+            rmBtn.style.cssText = 'width:auto; margin:0; padding:8px 11px; font-size:12px; background:#fff; color:#b91c1c; border:1px solid #fecaca;';
+            row.appendChild(rmBtn);
+        }
+
+        container.appendChild(row);
+    }
+
+    if (restore) {
+        const target = container.querySelector(`input[data-room-id="${restore.roomId}"][data-field="${restore.field}"]`);
+        if (target) {
+            target.focus();
+            try { target.setSelectionRange(restore.start, restore.start); } catch (_) { /* number inputs disallow this */ }
+        }
+    }
+}
+
+function addRoom() {
+    const isWall = currentMode === 'wall';
+    const newId = roomIdCounter;
+    rooms.push({
+        id: newId,
+        name: `${isWall ? 'Wall' : 'Room'} ${rooms.length + 1}`,
+        roomL: 10,
+        roomW: isWall ? 8 : 10
+    });
+    roomIdCounter++;
+    calculateAndDraw();
+
+    // Land the caret in the new row so the next thing typed goes where expected.
+    const inp = document.querySelector(`input[data-room-id="${newId}"][data-field="name"]`);
+    if (inp) { inp.focus(); inp.select(); }
+}
+
+function removeRoom(id) {
+    if (rooms.length <= 1) return; // always keep at least one room
+    rooms = rooms.filter(r => r.id !== id);
+    if (activeRoomId === id) activeRoomId = rooms[0].id;
+    syncActiveRoomInputs();
+    calculateAndDraw();
+}
+
+function getPrimaryOpeningRects(roomW) {
+    return openings.map(o => openingToCanvasRect(o, roomW));
+}
+
+function addOpening() {
+    const t = I18N[currentLang];
+    const nameInput = document.getElementById('openName');
+    const w = parseToFt(document.getElementById('openW').value);
+    const h = parseToFt(document.getElementById('openH').value);
+    const x = parseToFt(document.getElementById('openX').value);
+    const y = parseToFt(document.getElementById('openY').value);
+    const errorBox = document.getElementById('errorBox');
+
+    if (!(w > 0) || !(h > 0) || !(x >= 0) || !(y >= 0)) {
+        errorBox.innerHTML = '⚠️ ' + t.openingNote;
+        errorBox.style.display = 'block';
+        return;
+    }
+    const name = nameInput.value.trim() || `Opening ${openings.length + 1}`;
+    openings.push({ id: openingIdCounter++, name, w, h, x, y });
+    nameInput.value = '';
+    calculateAndDraw();
+}
+
+function removeOpening(id) {
+    openings = openings.filter(o => o.id !== id);
+    calculateAndDraw();
+}
+
+function renderOpeningChips() {
+    const t = I18N[currentLang];
+    const section = document.getElementById('openingsListSection');
+    section.innerHTML = '';
+    if (openings.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'flex';
+    for (const o of openings) {
+        const chip = document.createElement('div');
+        chip.style.cssText = 'display:flex; align-items:center; gap:6px; background:#fef3c7; border:1px solid #fbbf24; border-radius:16px; padding:4px 6px 4px 12px; font-size:13px; color:#78350f;';
+        chip.innerHTML = `<span>${o.name} — ${fromFt(o.w)}×${fromFt(o.h)} @ ${fromFt(o.x)},${fromFt(o.y)}</span>`;
+        const rmBtn = document.createElement('button');
+        rmBtn.type = 'button';
+        rmBtn.textContent = '✕';
+        rmBtn.title = t.removeRoom;
+        rmBtn.onclick = () => removeOpening(o.id);
+        rmBtn.style.cssText = 'width:auto; margin:0; padding:2px 7px; font-size:11px; background:#78716c; border-radius:50%;';
+        chip.appendChild(rmBtn);
+        section.appendChild(chip);
+    }
+}
+
+function renderRoomsAndCombinedTotal(tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox, activeCells, activeFull, activeCut) {
+    const t = I18N[currentLang];
+    const combinedSection = document.getElementById('combinedRoomsSection');
+
+    renderRoomsEditor();
+
+    // With only one room, the big canvas above already tells the whole story -
+    // a one-card gallery and a "combined" total would just be noise.
+    if (rooms.length <= 1) {
+        combinedSection.style.display = 'none';
+        return;
+    }
+
+    const layoutType = document.getElementById('layoutType').value;
+    const showCost = ratePerBox > 0;
+
+    // Every room is treated identically. The active room reuses the grid that
+    // was already simulated for the big canvas rather than recomputing it.
+    const allRooms = rooms.map(r => {
+        if (r.id === activeRoomId) {
+            return { ...r, cells: activeCells, fullTiles: activeFull, cutTiles: activeCut, isActive: true };
+        }
+        const g = simulateGrid(layoutType, r.roomL, r.roomW, tileL, tileW, spacerFt);
+        return { ...r, cells: g.cells, fullTiles: g.fullTiles, cutTiles: g.cutTiles, isActive: false };
+    });
+
+    const gallery = document.getElementById('roomsGallery');
+    gallery.innerHTML = '';
+    const miniMaxPx = 200;
+
+    let sumPieces = 0, sumArea = 0, sumSeparateBoxes = 0;
+
+    for (const room of allRooms) {
+        const piecesToBuy = room.fullTiles + room.cutTiles;
+        const roomOrder = computeOrderCore(piecesToBuy, tileL * tileW, room.roomL * room.roomW, piecesPerBox, handlingPct, ratePerBox);
+        sumPieces += piecesToBuy;
+        sumArea += room.roomL * room.roomW;
+        sumSeparateBoxes += roomOrder.boxesNeeded;
+
+        const card = document.createElement('div');
+        card.style.cssText = `border:2px solid ${room.isActive ? '#2563eb' : '#e2e8f0'}; border-radius:8px; padding:8px; text-align:center; background:${room.isActive ? '#eff6ff' : '#fff'}; cursor:pointer;`;
+        card.title = t.viewBtn;
+        card.onclick = () => setActiveRoom(room.id);
+
+        const caption = document.createElement('div');
+        caption.style.cssText = 'font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;';
+        caption.textContent = room.name + (room.isActive ? ' 👁' : '');
+        card.appendChild(caption);
+
+        const miniScale = Math.min(miniMaxPx / room.roomL, miniMaxPx / room.roomW);
+        const miniCanvas = document.createElement('canvas');
+        miniCanvas.width = room.roomL * miniScale;
+        miniCanvas.height = room.roomW * miniScale;
+        miniCanvas.style.cssText = 'border:2px solid #1e293b; max-width:100%; height:auto; background:#fff;';
+        card.appendChild(miniCanvas);
+        drawGrid(miniCanvas, room.cells, miniScale, spacerFt, false, tileL, tileW, room.isActive ? getPrimaryOpeningRects(room.roomW) : null);
+
+        const subCaption = document.createElement('div');
+        subCaption.style.cssText = 'font-size:11px; color:#64748b; margin-top:6px;';
+        subCaption.textContent = `${fromFt(room.roomL)}×${fromFt(room.roomW)} · ${piecesToBuy} pcs`;
+        card.appendChild(subCaption);
+
+        gallery.appendChild(card);
+    }
+
+    // Combined (pooled) order vs sum of separately-rounded orders
+    const combinedOrder = computeOrderCore(sumPieces, tileL * tileW, sumArea, piecesPerBox, handlingPct, ratePerBox);
+    const boxesSaved = sumSeparateBoxes - combinedOrder.boxesNeeded;
+
+    let combinedHtml = `<tbody>
+        <tr style="background:#ecfdf5; font-weight:700;">
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${t.row_combinedTotal}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${combinedOrder.boxesNeeded} boxes</td>
+            ${showCost ? `<td style="padding:8px; border-bottom:1px solid #e2e8f0;">₹${combinedOrder.estimatedCost.toLocaleString('en-IN')}</td>` : '<td></td>'}
+        </tr>
+        <tr>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">${t.row_separateTotal}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">${sumSeparateBoxes} boxes</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;"></td>
+        </tr>`;
+    if (boxesSaved > 0) {
+        combinedHtml += `<tr>
+            <td colspan="3" style="padding:8px; color:#0f766e; font-weight:700;">✓ ${boxesSaved} ${t.boxesSaved}</td>
+        </tr>`;
+    }
+    combinedHtml += '</tbody>';
+    document.getElementById('combinedRoomsTable').innerHTML = combinedHtml;
+    combinedSection.style.display = 'block';
+}
+
+function downloadReport() {
+    const t = I18N[currentLang];
+    const inputs = readInputsOrShowError(t);
+    if (!inputs) return;
+    const { roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox } = inputs;
+    const layoutType = document.getElementById('layoutType').value;
+    const { fullTiles, cutTiles, cells } = simulateGrid(layoutType, roomL, roomW, tileL, tileW, spacerFt, getPrimaryOpeningRects(roomW));
+    const dateStr = new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+    const showCost = ratePerBox > 0;
+
+    // Renders a room's grid WITH dimension labels, at print resolution.
+    function renderRoomImage(rL, rW, cellsIn, isActive) {
+        const maxPx = 560; // large enough that per-tile labels survive printing
+        const scale = Math.min(maxPx / rL, maxPx / rW);
+        const c = document.createElement('canvas');
+        c.width = rL * scale + DIM_MARGIN + 6;
+        c.height = rW * scale + DIM_MARGIN + 6;
+        drawGrid(c, cellsIn, scale, spacerFt, true, tileL, tileW, isActive ? getPrimaryOpeningRects(rW) : null, { L: rL, W: rW });
+        return c.toDataURL('image/png');
+    }
+
+    let roomsRows = '';
+    let roomImagesHtml = '';
+    let sumPieces = 0, sumArea = 0, sumSeparateBoxes = 0, sumFull = 0, sumCut = 0;
+
+    for (const r of rooms) {
+        const isActive = r.id === activeRoomId;
+        const rg = isActive
+            ? { cells, fullTiles, cutTiles }
+            : simulateGrid(layoutType, r.roomL, r.roomW, tileL, tileW, spacerFt);
+        const pieces = rg.fullTiles + rg.cutTiles;
+        const roomArea = r.roomL * r.roomW;
+        const roomNet = isActive ? roomArea - getOpeningsArea() : roomArea;
+        const ro = computeOrderCore(pieces, tileL * tileW, roomNet, piecesPerBox, handlingPct, ratePerBox);
+
+        sumPieces += pieces;
+        sumArea += roomNet;
+        sumSeparateBoxes += ro.boxesNeeded;
+        sumFull += rg.fullTiles;
+        sumCut += rg.cutTiles;
+
+        roomsRows += `<tr>
+            <td><b>${r.name}</b>${isActive && openings.length ? ' <span style="color:#b45309;">(has openings)</span>' : ''}</td>
+            <td>${fromFt(r.roomL)} × ${fromFt(r.roomW)}</td>
+            <td>${roomNet.toFixed(1)}</td>
+            <td>${rg.fullTiles}</td>
+            <td>${rg.cutTiles}</td>
+            <td>${pieces}</td>
+            <td>${ro.boxesNeeded}</td>
+        </tr>`;
+
+        const roomImg = renderRoomImage(r.roomL, r.roomW, rg.cells, isActive);
+        roomImagesHtml += `<div class="room-card">
+            <div class="room-name">${r.name}</div>
+            <img src="${roomImg}" alt="${r.name} layout">
+            <div class="room-meta">${fromFt(r.roomL)} × ${fromFt(r.roomW)} &nbsp;·&nbsp; ${rg.fullTiles} full + ${rg.cutTiles} cut = <b>${pieces} pcs</b></div>
+        </div>`;
+    }
+
+    const combined = computeOrderCore(sumPieces, tileL * tileW, sumArea, piecesPerBox, handlingPct, ratePerBox);
+    const grandBoxes = combined.boxesNeeded;
+    const grandCost = combined.estimatedCost;
+    const boxesSaved = sumSeparateBoxes - grandBoxes;
+
+    // Tile size printed in mm as well as feet - mm is what's on the box label.
+    const tileMmL = Math.round(tileL * MM_PER_FT);
+    const tileMmW = Math.round(tileW * MM_PER_FT);
+
+    const openingsTable = openings.length ? `
+        <h3>Openings Deducted</h3>
+        <table><thead><tr><th>Name</th><th>Size</th><th>Position (from bottom-left)</th><th>Area</th></tr></thead><tbody>
+        ${openings.map(o => `<tr><td>${o.name}</td><td>${fromFt(o.w)} × ${fromFt(o.h)}</td><td>${fromFt(o.x)} from left, ${fromFt(o.y)} from bottom</td><td>${(o.w * o.h).toFixed(2)} sq.ft</td></tr>`).join('')}
+        <tr class="subtotal"><td colspan="3">Total deducted</td><td>${getOpeningsArea().toFixed(2)} sq.ft</td></tr>
+        </tbody></table>` : '';
+
+    const reportHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${t.reportTitle}</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 30px; color: #1e293b; max-width: 900px; margin: auto; }
+        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 8px; margin-bottom: 4px; }
+        h3 { margin-top: 26px; color: #334155; border-left: 4px solid #2563eb; padding-left: 8px; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+        th, td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        th { background: #f1f5f9; font-size: 13px; }
+        .grand { background: #ecfdf5; font-weight: 700; font-size: 16px; }
+        .subtotal { background: #f8fafc; font-weight: 700; }
+        .saved { color: #0f766e; font-weight: 700; }
+        .meta { color: #64748b; font-size: 13px; margin-bottom: 18px; }
+        img { max-width: 100%; margin: 8px 0; }
+        .room-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin: 14px 0; }
+        .room-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
+        .room-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+        .room-meta { font-size: 12px; color: #64748b; margin-top: 6px; }
+        .legend { display:flex; gap:18px; justify-content:center; font-size:12px; margin:10px 0 4px; }
+        .sw { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:5px; }
+        @media print { button { display: none; } h3 { page-break-after: avoid; } }
+    </style></head><body>
+        <h1>📐 ${t.reportTitle}</h1>
+        <div class="meta">${t.reportDate}: ${dateStr} &nbsp;|&nbsp; <b style="color:#2563eb;">${currentMode === 'wall' ? t.modeWall : t.modeFloor}</b> &nbsp;|&nbsp; ${rooms.length} ${currentMode === 'wall' ? 'wall(s)' : 'room(s)'}</div>
+
+        <h3>${t.reportTileSpec}</h3>
+        <table>
+            <tr><td>Tile Size</td><td><b>${tileMmL} × ${tileMmW} mm</b> &nbsp;(${tileL}' × ${tileW}')</td></tr>
+            <tr><td>Tile Area (each)</td><td>${(tileL * tileW).toFixed(3)} sq.ft</td></tr>
+            <tr><td>Pieces per Box</td><td>${piecesPerBox}</td></tr>
+            <tr><td>Box Coverage</td><td>${(piecesPerBox * tileL * tileW).toFixed(2)} sq.ft / box</td></tr>
+            <tr><td>Grout Spacer</td><td>${document.getElementById('spacer').value} mm</td></tr>
+            <tr><td>Layout Alignment</td><td>${document.getElementById('layoutType').selectedOptions[0].text}</td></tr>
+            <tr><td>Handling / Breakage Buffer</td><td>${handlingPct}%</td></tr>
+            ${showCost ? `<tr><td>Rate per Box</td><td>₹${ratePerBox.toLocaleString('en-IN')}</td></tr>` : ''}
+            <tr><td>Measurements shown in</td><td>${document.getElementById('inputUnit').selectedOptions[0].text}</td></tr>
+        </table>
+
+        ${openingsTable}
+
+        <h3>${t.reportRoomBreakdown}</h3>
+        <table>
+            <thead><tr>
+                <th>${currentMode === 'wall' ? 'Wall' : 'Room'}</th><th>Size</th><th>Net Area (sq.ft)</th>
+                <th>Full</th><th>Cut</th><th>Total pcs</th><th>Boxes if alone</th>
+            </tr></thead>
+            <tbody>
+                ${roomsRows}
+                <tr class="subtotal">
+                    <td>TOTAL</td><td>—</td><td>${sumArea.toFixed(1)}</td>
+                    <td>${sumFull}</td><td>${sumCut}</td><td>${sumPieces}</td><td>${sumSeparateBoxes}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>${t.reportGrandTotal}</h3>
+        <table>
+            <tr class="grand"><td>Boxes to Order (pooled)</td><td>${grandBoxes} boxes</td></tr>
+            ${showCost ? `<tr class="grand"><td>Estimated Cost</td><td>₹${grandCost.toLocaleString('en-IN')}</td></tr>` : ''}
+            <tr><td>Pieces needed / shipped</td><td>${combined.piecesWithBuffer} / ${combined.totalPiecesShipped} pcs</td></tr>
+            <tr><td>Total tile area shipped</td><td>${combined.areaWithBuffer.toFixed(1)} sq.ft</td></tr>
+            <tr><td>Net area to cover</td><td>${sumArea.toFixed(1)} sq.ft</td></tr>
+            <tr><td>Cut / geometric wastage</td><td>${combined.geometricWastePct.toFixed(1)}%</td></tr>
+            <tr><td>If ordered room-by-room instead</td><td>${sumSeparateBoxes} boxes</td></tr>
+            ${boxesSaved > 0 ? `<tr><td class="saved">✓ Saved by pooling</td><td class="saved">${boxesSaved} box(es)</td></tr>` : ''}
+        </table>
+
+        <h3>Layout Drawings</h3>
+        <div class="legend">
+            <span><span class="sw" style="background:#93c5fd; border:1px solid #2563eb;"></span>Full Tile</span>
+            <span><span class="sw" style="background:#fca5a5; border:1px solid #ef4444;"></span>Cut Piece</span>
+            ${openings.length ? '<span><span class="sw" style="background:#fff; border:2px dashed #b45309;"></span>Opening</span>' : ''}
+        </div>
+        <div class="room-gallery">${roomImagesHtml}</div>
+
+        <div style="margin-top:24px; font-size:11px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:10px;">
+            Cut pieces consume a full source tile. Pieces-per-box is a typical value — confirm against the printed box label before ordering.
+        </div>
+
+        <button onclick="window.print()" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; margin-top:16px;">🖨️ Print / Save as PDF</button>
+    </body></html>`;
+
+    const reportWindow = window.open('', '_blank');
+    if (!reportWindow) {
+        alert('Please allow popups to download the report.');
+        return;
+    }
+    reportWindow.document.write(reportHtml);
+    reportWindow.document.close();
+}
+
+function calculateAndDraw() {
+    const t = I18N[currentLang];
+    const inputs = readInputsOrShowError(t);
+    if (!inputs) return;
+    const { roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox } = inputs;
+    const layoutType = document.getElementById('layoutType').value;
+
+    const canvas = document.getElementById('layoutCanvas');
+    const maxPx = 550;
+    const scale = Math.min(maxPx / roomL, maxPx / roomW);
+    // extra room on the left/top for the dimension lines, plus a little breathing space
+    canvas.width = roomL * scale + DIM_MARGIN + 6;
+    canvas.height = roomW * scale + DIM_MARGIN + 6;
+
+    const openRects = getPrimaryOpeningRects(roomW);
+    const { fullTiles, cutTiles, cells } = simulateGrid(layoutType, roomL, roomW, tileL, tileW, spacerFt, openRects);
+    drawGrid(canvas, cells, scale, spacerFt, true, tileL, tileW, openRects, { L: roomL, W: roomW });
+    renderPatternLegend();
+    renderOpeningChips();
+
+    const order = computeOrder(fullTiles, cutTiles, tileL, tileW, roomL, roomW, piecesPerBox, handlingPct, ratePerBox, roomL * roomW - getOpeningsArea());
+    const cutPct = order.piecesToBuy > 0 ? ((cutTiles / order.piecesToBuy) * 100).toFixed(0) : 0;
+
+    document.getElementById('autoWasteDisplay').value = order.geometricWastePct.toFixed(1) + '%';
+    document.getElementById('boxCoverageDisplay').value = order.boxCoverageSqFt.toFixed(2) + ' sq.ft';
+
+    let orderHtml = `
+        <div class="order-item">
+            <div class="label">${t.boxesNeeded}</div>
+            <div class="value highlight">${order.boxesNeeded} boxes</div>
+        </div>
+        <div class="order-item">
+            <div class="label">${t.pieces}</div>
+            <div class="value">${order.piecesWithBuffer} / ${order.totalPiecesShipped} pcs</div>
+        </div>
+        <div class="order-item">
+            <div class="label">${t.areaWithWastage}</div>
+            <div class="value">${order.areaWithBuffer.toFixed(1)} sq.ft</div>
+        </div>
+    `;
+    if (ratePerBox > 0) {
+        orderHtml += `
+        <div class="order-item">
+            <div class="label">${t.estCost}</div>
+            <div class="value highlight">₹${order.estimatedCost.toLocaleString('en-IN')}</div>
+        </div>`;
+    }
+    document.getElementById('orderSummary').innerHTML = orderHtml;
+
+    document.getElementById('statsBox').innerHTML = `
+        <span>${t.roomArea}: <b>${order.totalSqFt.toFixed(1)} sq.ft</b></span>
+        <span>${t.fullTiles}: <b>${fullTiles} pcs</b></span>
+        <span>${t.cutTiles}: <b>${cutTiles} pcs (${cutPct}%)</b></span>
+        ${openings.length ? `<span>${t.openingArea}: <b>−${getOpeningsArea().toFixed(1)} sq.ft</b></span>` : ''}
+    `;
+
+    // --- Manual method vs this app ---
+    // Manual/napkin math: total room area / tile area, rounded up.
+    // No cut-piece awareness, no spacer gap, no handling buffer.
+    const naivePieces = Math.ceil(order.totalSqFt / order.tileAreaEach);
+    const naiveBoxes = Math.ceil(naivePieces / piecesPerBox);
+    const boxGap = order.boxesNeeded - naiveBoxes;
+
+    let manualHtml = `<thead><tr style="background:#f1f5f9; text-align:left;">
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_method}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_pieces}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_boxes}</th>
+    </tr></thead><tbody>
+        <tr>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${t.row_manual}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${naivePieces}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${naiveBoxes}</td>
+        </tr>
+        <tr style="background:#ecfdf5; font-weight:700;">
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${t.row_app}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${order.piecesWithBuffer}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${order.boxesNeeded}</td>
+        </tr>
+        <tr>
+            <td style="padding:8px; color:${boxGap > 0 ? '#b91c1c' : '#64748b'}; font-weight:600;">${t.row_gap}</td>
+            <td style="padding:8px;" colspan="2">${boxGap > 0 ? '⚠️ ' + boxGap + ' ' + t.gapUnder : t.gapNone}</td>
+        </tr>
+    </tbody>`;
+    document.getElementById('manualCompareTable').innerHTML = manualHtml;
+
+    // --- Visual: naive full-tile-only grid vs this app's actual grid ---
+    const miniMaxPx = 260;
+    const miniScale2 = Math.min(miniMaxPx / roomL, miniMaxPx / roomW);
+
+    const naiveCanvas = document.getElementById('naiveCanvas');
+    naiveCanvas.width = roomL * miniScale2;
+    naiveCanvas.height = roomW * miniScale2;
+    const { cells: naiveCells } = simulateNaiveGrid(roomL, roomW, tileL, tileW, spacerFt);
+    drawGrid(naiveCanvas, naiveCells, miniScale2, spacerFt, false, tileL, tileW, openRects);
+
+    const appMiniCanvas = document.getElementById('appMiniCanvas');
+    appMiniCanvas.width = roomL * miniScale2;
+    appMiniCanvas.height = roomW * miniScale2;
+    drawGrid(appMiniCanvas, cells, miniScale2, spacerFt, false, tileL, tileW, openRects);
+
+    renderRoomsAndCombinedTotal(tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox, cells, fullTiles, cutTiles);
+    renderSkirting(tileL, tileW, piecesPerBox, ratePerBox, handlingPct);
+
+    if (document.getElementById('compareSection').dataset.open === '1') {
+        compareLayouts();
+    }
+    if (document.getElementById('wasteCompareSection').dataset.open === '1') {
+        compareWastage();
+    }
+}
+
+function compareLayouts() {
+    const t = I18N[currentLang];
+    const inputs = readInputsOrShowError(t);
+    if (!inputs) return;
+    const { roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox } = inputs;
+
+    const layoutTypes = [
+        { key: 'center', label: t.opt_center },
+        { key: 'tl', label: t.opt_tl },
+        { key: 'tr', label: t.opt_tr },
+        { key: 'bl', label: t.opt_bl },
+        { key: 'br', label: t.opt_br }
+    ];
+
+    // A square tile has no meaningful orientation, so only test the flip when
+    // the tile is actually rectangular.
+    const isSquare = Math.abs(tileL - tileW) < 0.01;
+    const orientations = isSquare
+        ? [{ L: tileL, W: tileW, tag: '' }]
+        : [
+            { L: tileL, W: tileW, tag: ` — ${t.orientLong}` },
+            { L: tileW, W: tileL, tag: ` — ${t.orientShort}` }
+        ];
+
+    const rows = [];
+    for (const o of orientations) {
+        for (const lt of layoutTypes) {
+            const { fullTiles, cutTiles, cells } = simulateGrid(lt.key, roomL, roomW, o.L, o.W, spacerFt, getPrimaryOpeningRects(roomW));
+            const order = computeOrder(fullTiles, cutTiles, o.L, o.W, roomL, roomW, piecesPerBox, handlingPct, ratePerBox, roomL * roomW - getOpeningsArea());
+
+            // The number of tiles NEVER changes with alignment - shifting a grid
+            // across a rectangle can't change how many tiles cover it. What changes
+            // is the size of the edge pieces, and a razor-thin sliver is the real
+            // on-site problem: hard to cut, prone to snapping, and it looks bad.
+            let minSliver = Infinity;
+            for (const c of cells) {
+                if (c.drawW < o.L - 0.02) minSliver = Math.min(minSliver, c.drawW);
+                if (c.drawH < o.W - 0.02) minSliver = Math.min(minSliver, c.drawH);
+            }
+            if (minSliver === Infinity) minSliver = Math.min(o.L, o.W);
+
+            // Rule of thumb: an edge piece under a third of the tile is trouble.
+            const sliverRatio = minSliver / Math.min(o.L, o.W);
+            rows.push({
+                key: lt.key, label: lt.label + o.tag,
+                tileL: o.L, tileW: o.W,
+                fullTiles, cutTiles, cells, minSliver, sliverRatio, ...order
+            });
+        }
+    }
+
+    // Best = the layout whose worst edge piece is the LARGEST (most workable).
+    const bestSliver = Math.max(...rows.map(r => r.minSliver));
+
+    const showCost = ratePerBox > 0;
+    let html = `<thead><tr style="background:#f1f5f9; text-align:left;">
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_layout}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_full}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_cut}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_sliver}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_boxes}</th>
+        ${showCost ? `<th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_cost}</th>` : ''}
+    </tr></thead><tbody>`;
+
+    for (const r of rows) {
+        const isBest = r.minSliver === bestSliver;
+        const risky = r.sliverRatio < 0.33;
+        html += `<tr style="${isBest ? 'background:#ecfdf5; font-weight:700;' : ''}">
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.label}${isBest ? ' ' + t.bestTag : ''}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.fullTiles}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.cutTiles}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0; color:${risky ? '#b91c1c' : '#0f766e'}; font-weight:700;">
+                ${(r.minSliver * 12).toFixed(1)}" ${risky ? '⚠️' : ''}
+            </td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.boxesNeeded}</td>
+            ${showCost ? `<td style="padding:8px; border-bottom:1px solid #e2e8f0;">₹${r.estimatedCost.toLocaleString('en-IN')}</td>` : ''}
+        </tr>`;
+    }
+    html += `</tbody><tfoot><tr><td colspan="${showCost ? 6 : 5}" style="padding:10px; font-size:12px; color:#64748b; background:#f8fafc;">${t.layoutCompareNote}</td></tr></tfoot>`;
+
+    document.getElementById('compareTable').innerHTML = html;
+
+    // --- Mini visual grids, one per layout option ---
+    const gridsContainer = document.getElementById('compareGrids');
+    gridsContainer.innerHTML = '';
+    const miniMaxPx = 220;
+    const miniScale = Math.min(miniMaxPx / roomL, miniMaxPx / roomW);
+
+    for (const r of rows) {
+        const isBest = r.minSliver === bestSliver;
+        const card = document.createElement('div');
+        card.style.cssText = `border:2px solid ${isBest ? '#10b981' : '#e2e8f0'}; border-radius:8px; padding:8px; text-align:center; background:${isBest ? '#f0fdf4' : '#fff'};`;
+
+        const caption = document.createElement('div');
+        caption.style.cssText = 'font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;';
+        caption.textContent = r.label + (isBest ? ' ' + t.bestTag : '');
+        card.appendChild(caption);
+
+        const miniCanvas = document.createElement('canvas');
+        miniCanvas.width = roomL * miniScale;
+        miniCanvas.height = roomW * miniScale;
+        miniCanvas.style.cssText = 'border:2px solid #1e293b; max-width:100%; height:auto; background:#fff;';
+        card.appendChild(miniCanvas);
+        drawGrid(miniCanvas, r.cells, miniScale, spacerFt, false, r.tileL, r.tileW, getPrimaryOpeningRects(roomW));
+
+        const subCaption = document.createElement('div');
+        subCaption.style.cssText = 'font-size:11px; color:#64748b; margin-top:6px;';
+        subCaption.textContent = `${r.cutTiles} cuts · smallest edge ${(r.minSliver * 12).toFixed(1)}"`;
+        subCaption.style.color = r.sliverRatio < 0.33 ? '#b91c1c' : '#64748b';
+        card.appendChild(subCaption);
+
+        gridsContainer.appendChild(card);
+    }
+
+    const section = document.getElementById('compareSection');
+    section.style.display = 'block';
+    section.dataset.open = '1';
+}
+
+function compareWastage() {
+    const t = I18N[currentLang];
+    const inputs = readInputsOrShowError(t);
+    if (!inputs) return;
+    const { roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox } = inputs;
+    const layoutType = document.getElementById('layoutType').value;
+
+    const { fullTiles, cutTiles } = simulateGrid(layoutType, roomL, roomW, tileL, tileW, spacerFt, getPrimaryOpeningRects(roomW));
+
+    // Sensitivity range, always including the user's current value so they can
+    // see exactly where "their number" sits relative to the alternatives.
+    const levels = [0, 2, 3, 5, 8, 10, 15];
+    if (!levels.includes(Math.round(handlingPct))) levels.push(Math.round(handlingPct));
+    levels.sort((a, b) => a - b);
+
+    const showCost = ratePerBox > 0;
+    let html = `<thead><tr style="background:#f1f5f9; text-align:left;">
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_handling}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_pieces}</th>
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_boxes}</th>
+        ${showCost ? `<th style="padding:8px; border-bottom:2px solid #cbd5e1;">${t.col_cost}</th>` : ''}
+        <th style="padding:8px; border-bottom:2px solid #cbd5e1;"></th>
+    </tr></thead><tbody>`;
+
+    for (const pct of levels) {
+        const order = computeOrder(fullTiles, cutTiles, tileL, tileW, roomL, roomW, piecesPerBox, pct, ratePerBox, roomL * roomW - getOpeningsArea());
+        const isCurrent = Math.round(pct) === Math.round(handlingPct);
+        html += `<tr style="${isCurrent ? 'background:#ede9fe; font-weight:700;' : ''}">
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${pct}%</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${order.piecesWithBuffer}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${order.boxesNeeded}</td>
+            ${showCost ? `<td style="padding:8px; border-bottom:1px solid #e2e8f0;">₹${order.estimatedCost.toLocaleString('en-IN')}</td>` : ''}
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#7c3aed; font-weight:700;">${isCurrent ? t.col_current : ''}</td>
+        </tr>`;
+    }
+    html += '</tbody>';
+
+    document.getElementById('wasteCompareTable').innerHTML = html;
+    const section = document.getElementById('wasteCompareSection');
+    section.style.display = 'block';
+    section.dataset.open = '1';
+}
+
+window.onload = () => {
+    populateTilePresets();
+    syncActiveRoomInputs();
+    applyTilePreset(); // sets tile dims + pcs/box from the default preset
+    setLang('en');
+};
+</script>
+
+</body>
+</html>
