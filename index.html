@@ -647,6 +647,8 @@ const I18N = {
         skirtTooTall: '⚠️ Skirting height is larger than the tile — no strip can be cut from this tile. Use a shorter skirting or a bigger tile.',
         orientation: 'Tile Direction',
         orientBtn: '⟳ Rotate 90°',
+        cardRotateBtn: '⟳ Rotate 90°',
+        cardRotateTitle: 'Turn the tile 90° for this layout only — the other cards stay as they are',
         orientLong: 'long side along length',
         orientShort: 'long side along width',
         layoutCompareNote: '⚠️ Important: changing the layout does NOT change the total tile or box count — that is geometrically fixed. What changes is the SIZE of the edge cuts. A sliver under 1/3 of a tile (shown red) is hard to cut, snaps easily, and looks bad. Masons pick center-balanced for this reason, even though it shows more cut pieces.',
@@ -2097,36 +2099,46 @@ function compareLayouts() {
     // the tile is actually rectangular.
     const isSquare = Math.abs(tileL - tileW) < 0.01;
     const orientations = isSquare
-        ? [{ L: tileL, W: tileW, tag: '' }]
+        ? [{ L: tileL, W: tileW }]
         : [
-            { L: tileL, W: tileW, tag: ` — ${t.orientLong}` },
-            { L: tileW, W: tileL, tag: ` — ${t.orientShort}` }
+            { L: tileL, W: tileW },
+            { L: tileW, W: tileL }
         ];
+
+    // One alignment at one tile orientation. Pulled out of the loop so the
+    // per-card rotate button can re-evaluate a single card on demand, instead
+    // of rebuilding the whole comparison.
+    function evaluateLayout(ltKey, baseLabel, tL, tW) {
+        const tag = isSquare
+            ? ''
+            : (Math.abs(tL - tileL) < 0.01 ? ` — ${t.orientLong}` : ` — ${t.orientShort}`);
+        const { fullTiles, cutTiles, cells } = simulateGrid(ltKey, roomL, roomW, tL, tW, spacerFt, getPrimaryOpeningRects(roomW));
+        const order = computeOrder(fullTiles, cutTiles, tL, tW, roomL, roomW, piecesPerBox, handlingPct, ratePerBox, roomL * roomW - getOpeningsArea());
+
+        // The number of tiles NEVER changes with alignment - shifting a grid
+        // across a rectangle can't change how many tiles cover it. What changes
+        // is the size of the edge pieces, and a razor-thin sliver is the real
+        // on-site problem: hard to cut, prone to snapping, and it looks bad.
+        let minSliver = Infinity;
+        for (const c of cells) {
+            if (c.drawW < tL - 0.02) minSliver = Math.min(minSliver, c.drawW);
+            if (c.drawH < tW - 0.02) minSliver = Math.min(minSliver, c.drawH);
+        }
+        if (minSliver === Infinity) minSliver = Math.min(tL, tW);
+
+        // Rule of thumb: an edge piece under a third of the tile is trouble.
+        const sliverRatio = minSliver / Math.min(tL, tW);
+        return {
+            key: ltKey, baseLabel, label: baseLabel + tag,
+            tileL: tL, tileW: tW,
+            fullTiles, cutTiles, cells, minSliver, sliverRatio, ...order
+        };
+    }
 
     const rows = [];
     for (const o of orientations) {
         for (const lt of layoutTypes) {
-            const { fullTiles, cutTiles, cells } = simulateGrid(lt.key, roomL, roomW, o.L, o.W, spacerFt, getPrimaryOpeningRects(roomW));
-            const order = computeOrder(fullTiles, cutTiles, o.L, o.W, roomL, roomW, piecesPerBox, handlingPct, ratePerBox, roomL * roomW - getOpeningsArea());
-
-            // The number of tiles NEVER changes with alignment - shifting a grid
-            // across a rectangle can't change how many tiles cover it. What changes
-            // is the size of the edge pieces, and a razor-thin sliver is the real
-            // on-site problem: hard to cut, prone to snapping, and it looks bad.
-            let minSliver = Infinity;
-            for (const c of cells) {
-                if (c.drawW < o.L - 0.02) minSliver = Math.min(minSliver, c.drawW);
-                if (c.drawH < o.W - 0.02) minSliver = Math.min(minSliver, c.drawH);
-            }
-            if (minSliver === Infinity) minSliver = Math.min(o.L, o.W);
-
-            // Rule of thumb: an edge piece under a third of the tile is trouble.
-            const sliverRatio = minSliver / Math.min(o.L, o.W);
-            rows.push({
-                key: lt.key, label: lt.label + o.tag,
-                tileL: o.L, tileW: o.W,
-                fullTiles, cutTiles, cells, minSliver, sliverRatio, ...order
-            });
+            rows.push(evaluateLayout(lt.key, lt.label, o.L, o.W));
         }
     }
 
@@ -2168,27 +2180,54 @@ function compareLayouts() {
     const miniScale = Math.min(miniMaxPx / roomL, miniMaxPx / roomW);
 
     for (const r of rows) {
-        const isBest = r.minSliver === bestSliver;
+        // `current` is what this card is showing right now. It starts as the
+        // row from the table and is replaced in place when the card is rotated,
+        // so one card can be flipped without disturbing its neighbours.
+        let current = r;
+
         const card = document.createElement('div');
-        card.style.cssText = `border:2px solid ${isBest ? '#10b981' : '#e2e8f0'}; border-radius:8px; padding:8px; text-align:center; background:${isBest ? '#f0fdf4' : '#fff'};`;
 
         const caption = document.createElement('div');
         caption.style.cssText = 'font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;';
-        caption.textContent = r.label + (isBest ? ' ' + t.bestTag : '');
         card.appendChild(caption);
 
         const miniCanvas = document.createElement('canvas');
-        miniCanvas.width = roomL * miniScale;
-        miniCanvas.height = roomW * miniScale;
         miniCanvas.style.cssText = 'border:2px solid #1e293b; max-width:100%; height:auto; background:#fff;';
         card.appendChild(miniCanvas);
-        drawGrid(miniCanvas, r.cells, miniScale, spacerFt, false, r.tileL, r.tileW, getPrimaryOpeningRects(roomW));
 
         const subCaption = document.createElement('div');
-        subCaption.style.cssText = 'font-size:11px; color:#64748b; margin-top:6px;';
-        subCaption.textContent = `${r.cutTiles} cuts · smallest edge ${(r.minSliver * 12).toFixed(1)}"`;
-        subCaption.style.color = r.sliverRatio < 0.33 ? '#b91c1c' : '#64748b';
+        subCaption.style.cssText = 'font-size:11px; margin-top:6px;';
         card.appendChild(subCaption);
+
+        const paintCard = () => {
+            const isBest = current.minSliver === bestSliver;
+            card.style.cssText = `border:2px solid ${isBest ? '#10b981' : '#e2e8f0'}; border-radius:8px; padding:8px; text-align:center; background:${isBest ? '#f0fdf4' : '#fff'};`;
+            caption.textContent = current.label + (isBest ? ' ' + t.bestTag : '');
+            // Reassigning width/height also clears the canvas, so a rotated
+            // grid never paints on top of the previous one.
+            miniCanvas.width = roomL * miniScale;
+            miniCanvas.height = roomW * miniScale;
+            drawGrid(miniCanvas, current.cells, miniScale, spacerFt, false, current.tileL, current.tileW, getPrimaryOpeningRects(roomW));
+            subCaption.textContent = `${current.cutTiles} cuts · smallest edge ${(current.minSliver * 12).toFixed(1)}"`;
+            subCaption.style.color = current.sliverRatio < 0.33 ? '#b91c1c' : '#64748b';
+        };
+        paintCard();
+
+        // A square tile looks identical after a 90° turn, so the button would
+        // be a no-op - don't offer it.
+        if (!isSquare) {
+            const rotateBtn = document.createElement('button');
+            rotateBtn.type = 'button';
+            rotateBtn.className = 'btn-ghost';
+            rotateBtn.textContent = t.cardRotateBtn;
+            rotateBtn.title = t.cardRotateTitle;
+            rotateBtn.style.cssText = 'width:auto; margin:8px 0 0; padding:6px 10px; font-size:12px;';
+            rotateBtn.onclick = () => {
+                current = evaluateLayout(current.key, current.baseLabel, current.tileW, current.tileL);
+                paintCard();
+            };
+            card.appendChild(rotateBtn);
+        }
 
         gridsContainer.appendChild(card);
     }
