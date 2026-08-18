@@ -345,7 +345,7 @@
                 <option value="ftin">ft-in (10'6")</option>
                 <option value="in">inch</option>
                 <option value="m">meter</option>
-                <option value="mm">mm</option>
+                <option value="mm" selected>mm</option>
             </select>
         </div>
     </div>
@@ -358,11 +358,11 @@
         <div class="form-grid" style="margin-top:12px;">
             <div class="input-group">
                 <label id="t_tileL"></label>
-                <input type="number" id="tileL" value="4" step="0.01" min="0.1">
+                <input type="number" id="tileL" value="600" step="1" min="1">
             </div>
             <div class="input-group">
                 <label id="t_tileW"></label>
-                <input type="number" id="tileW" value="2" step="0.01" min="0.1">
+                <input type="number" id="tileW" value="600" step="1" min="1">
             </div>
             <div class="input-group">
                 <label id="t_piecesPerBox"></label>
@@ -418,7 +418,7 @@
             </div>
             <div class="input-group">
                 <label id="t_doorWidth"></label>
-                <input type="number" id="doorWidth" value="0" step="0.5" min="0">
+                <input type="number" id="doorWidth" value="0" step="10" min="0">
             </div>
         </div>
     </details>
@@ -513,9 +513,9 @@
 
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:10px;">
             <div class="unit-toggle" style="display:flex; gap:4px; background:#e2e8f0; padding:4px; border-radius:8px; margin:0;">
-                <button id="unitFtBtn" onclick="setUnit('ft')" class="active">ft</button>
+                <button id="unitFtBtn" onclick="setUnit('ft')">ft</button>
                 <button id="unitFtInBtn" onclick="setUnit('ftin')">ft-in</button>
-                <button id="unitMmBtn" onclick="setUnit('mm')">mm</button>
+                <button id="unitMmBtn" onclick="setUnit('mm')" class="active">mm</button>
             </div>
             <button type="button" onclick="swapTileOrientation()" id="t_orientBtn" class="btn-ghost" style="width:auto; margin:0; padding:9px 14px; font-size:13px;"></button>
         </div>
@@ -551,19 +551,19 @@ const I18N = {
         inputUnitLabel: 'Input unit:',
         roomsTitleFloor: '🏠 Rooms',
         roomsTitleWall: '🧱 Walls',
-        dimLenFloor: 'Length (ft)',
-        dimWidFloor: 'Width (ft)',
-        dimLenWall: 'Wall Width (ft)',
-        dimWidWall: 'Wall Height (ft)',
+        dimLenFloor: 'Length',
+        dimWidFloor: 'Width',
+        dimLenWall: 'Wall Width',
+        dimWidWall: 'Wall Height',
         roomsTitle: '🏠 Rooms',
         roomsNote: 'Edit each room\'s name and size directly. Press 👁 to choose which room shows the detailed layout below.',
         viewBtn: 'View',
         viewing: 'Viewing',
         advancedSummary: '⚙️ Advanced settings (spacer, layout, rate, photo) — only if you need them',
-        roomL: 'Primary Room Length (ft)',
-        roomW: 'Primary Room Width (ft)',
-        tileL: 'Tile Length (ft)',
-        tileW: 'Tile Width (ft)',
+        roomL: 'Primary Room Length',
+        roomW: 'Primary Room Width',
+        tileL: 'Tile Length',
+        tileW: 'Tile Width',
         spacer: 'Grout Spacer Gap (mm)',
         layoutType: 'Layout Alignment',
         opt_center: 'Center-Balanced',
@@ -580,16 +580,16 @@ const I18N = {
         sec4: '🚪 Openings — Window / Door / Fixture (Wall Tiling)',
         openingNote: 'For wall tiling. Tiles aren\'t needed where a window or door sits — that area is removed from the count. Measure position from the BOTTOM-LEFT corner of the wall.',
         openName: 'Opening Name',
-        openW: 'Width (ft)',
-        openH: 'Height (ft)',
-        openX: 'From Left (ft)',
-        openY: 'From Bottom (ft)',
+        openW: 'Width',
+        openH: 'Height',
+        openX: 'From Left',
+        openY: 'From Bottom',
         addOpenBtn: '+ Add Opening',
         openingsSaved: 'tiles saved by openings',
         openingArea: 'Opening Area',
         roomName: 'Room Name',
-        roomAddL: 'Length (ft)',
-        roomAddW: 'Width (ft)',
+        roomAddL: 'Length',
+        roomAddW: 'Width',
         addRoomBtn: '+ Add Room',
         col_roomName: 'Room',
         col_size: 'Size',
@@ -642,7 +642,7 @@ const I18N = {
         col_sliver: 'Smallest Edge Piece',
         skirting: 'Skirting',
         skirtHeight: 'Skirting Height (mm)',
-        doorWidth: 'Door Width to Deduct (ft, per room)',
+        doorWidth: 'Door Width to Deduct, per room',
         skirtTitle: '📏 Skirting Quantity',
         skirtPerimeter: 'Perimeter',
         skirtTiles: 'Tiles if alone',
@@ -688,7 +688,7 @@ function setLang(lang) {
     document.getElementById('t_orientBtn').textContent = t.orientBtn;
     document.getElementById('t_skirting').textContent = t.skirting;
     document.getElementById('t_skirtHeight').textContent = t.skirtHeight;
-    document.getElementById('t_doorWidth').textContent = t.doorWidth;
+    document.getElementById('t_doorWidth').textContent = t.doorWidth + unitSuffix();
     document.getElementById('t_skirtTitle').textContent = t.skirtTitle;
     document.getElementById('t_roomsTitle').textContent = currentMode === 'wall' ? t.roomsTitleWall : t.roomsTitleFloor;
     document.getElementById('t_roomsNote').textContent = t.roomsNote;
@@ -697,8 +697,8 @@ function setLang(lang) {
     document.getElementById('modeWallBtn').textContent = t.modeWall;
     document.getElementById('t_modeNote').textContent = currentMode === 'wall' ? t.modeNoteWall : t.modeNoteFloor;
     document.getElementById('t_advancedSummary').textContent = t.advancedSummary;
-    document.getElementById('t_tileL').textContent = t.tileL;
-    document.getElementById('t_tileW').textContent = t.tileW;
+    document.getElementById('t_tileL').textContent = t.tileL + unitSuffix();
+    document.getElementById('t_tileW').textContent = t.tileW + unitSuffix();
     document.getElementById('t_spacer').textContent = t.spacer;
     document.getElementById('t_layoutType').textContent = t.layoutType;
     document.getElementById('t_opt_center').textContent = t.opt_center;
@@ -710,10 +710,10 @@ function setLang(lang) {
     document.getElementById('t_sec4').textContent = t.sec4;
     document.getElementById('t_openingNote').textContent = t.openingNote;
     document.getElementById('t_openName').textContent = t.openName;
-    document.getElementById('t_openW').textContent = t.openW;
-    document.getElementById('t_openH').textContent = t.openH;
-    document.getElementById('t_openX').textContent = t.openX;
-    document.getElementById('t_openY').textContent = t.openY;
+    document.getElementById('t_openW').textContent = t.openW + unitSuffix();
+    document.getElementById('t_openH').textContent = t.openH + unitSuffix();
+    document.getElementById('t_openX').textContent = t.openX + unitSuffix();
+    document.getElementById('t_openY').textContent = t.openY + unitSuffix();
     document.getElementById('t_addOpenBtn').textContent = t.addOpenBtn;
     document.getElementById('t_addRoomBtn').textContent = t.addRoomBtn;
     document.getElementById('t_reportBtn').textContent = t.reportBtn;
@@ -908,8 +908,8 @@ function readInputsOrShowError(t) {
 
     const roomL = parseFloat(document.getElementById('roomL').value);
     const roomW = parseFloat(document.getElementById('roomW').value);
-    const tileL = parseFloat(document.getElementById('tileL').value);
-    const tileW = parseFloat(document.getElementById('tileW').value);
+    const tileL = readTileFt('tileL', 'L');
+    const tileW = readTileFt('tileW', 'W');
     const spacerMm = parseFloat(document.getElementById('spacer').value);
     const piecesPerBox = parseFloat(document.getElementById('piecesPerBox').value);
     const handlingPctRaw = parseFloat(document.getElementById('handling').value);
@@ -980,11 +980,13 @@ function populateTilePresets() {
 // real design decision, not a formality - it changes the cut pattern and how
 // the room reads visually.
 function swapTileOrientation() {
-    const lEl = document.getElementById('tileL');
-    const wEl = document.getElementById('tileW');
-    const tmp = lEl.value;
-    lEl.value = wEl.value;
-    wEl.value = tmp;
+    // Adopt anything typed by hand before swapping, or the edit would be lost.
+    const l = readTileFt('tileL', 'L');
+    const w = readTileFt('tileW', 'W');
+    if (isNaN(l) || isNaN(w)) return;
+    tileFt.L = w;
+    tileFt.W = l;
+    syncTileFields();
     calculateAndDraw();
 }
 
@@ -1000,13 +1002,14 @@ function applyTilePreset() {
     }
     // Convert mm to feet precisely. 600mm is 1.9685 ft, NOT 2 ft - that ~1.5%
     // difference is exactly what decides whether an edge cut appears.
-    document.getElementById('tileL').value = (preset.mm[1] / MM_PER_FT).toFixed(3);
-    document.getElementById('tileW').value = (preset.mm[0] / MM_PER_FT).toFixed(3);
+    tileFt.L = preset.mm[1] / MM_PER_FT;
+    tileFt.W = preset.mm[0] / MM_PER_FT;
+    syncTileFields();
     document.getElementById('piecesPerBox').value = preset.pcs;
     calculateAndDraw();
 }
 
-let currentUnit = 'ft';
+let currentUnit = 'mm';
 
 function setUnit(unit) {
     currentUnit = unit;
@@ -1246,7 +1249,7 @@ function renderSkirting(tileL, tileW, piecesPerBox, ratePerBox, handlingPct) {
     }
 
     const skirtMm = parseFloat(document.getElementById('skirtHeight').value);
-    const doorDeductFt = parseFloat(document.getElementById('doorWidth').value) || 0;
+    const doorDeductFt = parseToFt(document.getElementById('doorWidth').value) || 0;
     if (!(skirtMm > 0)) { section.style.display = 'none'; return; }
 
     const skirtFt = skirtMm / MM_PER_FT;
@@ -1280,7 +1283,7 @@ function renderSkirting(tileL, tileW, piecesPerBox, ratePerBox, handlingPct) {
         totalTiles += tilesNeeded;
         rows += `<tr>
             <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.name}</td>
-            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${fromFt(r.roomL)} × ${fromFt(r.roomW)}</td>
+            <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${fromFt(r.roomL)} × ${fromFt(r.roomW)}${unitToken()}</td>
             <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${perim.toFixed(1)} ft</td>
             <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${tilesNeeded}</td>
         </tr>`;
@@ -1318,11 +1321,47 @@ function renderSkirting(tileL, tileW, piecesPerBox, ratePerBox, handlingPct) {
 
 // currently drawn in the big detailed canvas; it carries no special status
 // in the ordering math.
-// All room/opening dimensions are STORED in feet. The input unit only changes
-// how they're typed and displayed, so switching units never loses precision.
-let inputUnit = 'ft';
+// All room/opening/tile dimensions are STORED in feet. The input unit only
+// changes how they're typed and displayed, so switching units never loses
+// precision. mm is the default because that is what the tile box, the tape on
+// site and the mason all speak in.
+let inputUnit = 'mm';
 
 const TO_FT = { ft: 1, in: 1 / 12, m: 3.280839895, mm: 1 / 304.8 };
+
+const UNIT_LABEL = { ft: 'ft', ftin: 'ft-in', in: 'inch', m: 'm', mm: 'mm' };
+
+// Every dimension field follows the input-unit dropdown, so its caption has to
+// follow too - a box typed in mm must never still read "(ft)".
+function unitSuffix() {
+    return ` (${UNIT_LABEL[inputUnit] || inputUnit})`;
+}
+
+// For a dimension printed inline, e.g. "3048 x 3048 mm". ft-in already carries
+// its own marks, so it needs no token appended.
+function unitToken() {
+    return inputUnit === 'ftin' ? '' : ' ' + (UNIT_LABEL[inputUnit] || inputUnit);
+}
+
+// The tile size is the one dimension where display rounding really bites. A
+// 600 mm tile is 1.9685 ft; shown as ft-in it reads 1'11.6", and re-reading that
+// rounded string would land on 2 ft - the 1.5% error this whole tool exists to
+// avoid. So the canonical feet value is kept here and the box is only re-read
+// when it no longer holds the number we wrote into it.
+let tileFt = { L: null, W: null };
+
+function readTileFt(id, key) {
+    const shown = document.getElementById(id).value;
+    if (tileFt[key] !== null && shown === fromFt(tileFt[key], true)) return tileFt[key];
+    const typed = parseToFt(shown);
+    if (!isNaN(typed)) tileFt[key] = typed;
+    return typed;
+}
+
+function syncTileFields() {
+    if (tileFt.L !== null) document.getElementById('tileL').value = fromFt(tileFt.L, true);
+    if (tileFt.W !== null) document.getElementById('tileW').value = fromFt(tileFt.W, true);
+}
 
 // Parses a value typed in the current input unit and returns feet.
 // Returns NaN if unparseable, so callers can reject it.
@@ -1347,37 +1386,59 @@ function parseToFt(raw) {
 }
 
 // Formats a stored feet value for display in the current input unit.
-function fromFt(ft) {
+// `precise` keeps a decimal where whole units would lie: a 600 mm tile is
+// 1'11.6", and rounding that to 2'0" is the very error this tool is about.
+// Room-scale dimensions stay on whole mm/inches, which is how they get measured.
+function fromFt(ft, precise) {
     if (inputUnit === 'ftin') {
         const whole = Math.floor(ft);
-        let inches = Math.round((ft - whole) * 12);
+        const rawIn = (ft - whole) * 12;
+        let inches = precise ? Math.round(rawIn * 10) / 10 : Math.round(rawIn);
         let adj = whole;
-        if (inches === 12) { inches = 0; adj += 1; }
+        if (inches >= 12) { inches -= 12; adj += 1; }
         return `${adj}'${inches}"`;
     }
     const val = ft / (TO_FT[inputUnit] || 1);
     // mm/inch read better as whole numbers; ft/m need decimals
-    if (inputUnit === 'mm') return String(Math.round(val));
-    if (inputUnit === 'in') return String(Math.round(val * 10) / 10);
+    if (inputUnit === 'mm') return String(Math.round(val * (precise ? 10 : 1)) / (precise ? 10 : 1));
+    if (inputUnit === 'in') return String(Math.round(val * (precise ? 100 : 10)) / (precise ? 100 : 10));
     return String(Math.round(val * 1000) / 1000);
 }
 
-// Openings are stored in feet too, so switching units just re-renders them.
+// A sensible spinner step for the unit: whole mm and inches, fractions of a
+// foot or metre. Nobody nudges a wall length by a hundredth of a millimetre.
+const UNIT_STEP = { ft: '0.1', ftin: '0.1', in: '1', m: '0.01', mm: '1' };
+
+// Openings, rooms and tile sizes are all stored in feet, so switching units is
+// purely a re-render - but the values standing in the boxes have to be
+// rewritten, or a number typed in ft would be silently re-read as mm.
 function setInputUnit(unit) {
-    // Convert the standing opening-entry fields so a half-typed entry isn't
-    // silently reinterpreted in the new unit.
-    const openFields = ['openW', 'openH', 'openX', 'openY'];
-    const heldFt = openFields.map(id => parseToFt(document.getElementById(id).value));
+    const convertFields = ['openW', 'openH', 'openX', 'openY', 'doorWidth'];
+    const heldFt = convertFields.map(id => parseToFt(document.getElementById(id).value));
+    // Pick up any hand-typed tile size while the old unit still applies.
+    readTileFt('tileL', 'L');
+    readTileFt('tileW', 'W');
 
     inputUnit = unit;
 
-    openFields.forEach((id, i) => {
+    convertFields.forEach((id, i) => {
         const el = document.getElementById(id);
         el.type = unit === 'ftin' ? 'text' : 'number';
         if (!isNaN(heldFt[i])) el.value = fromFt(heldFt[i]);
-        el.placeholder = unit === 'ftin' ? "10'6\"" : '';
+        if (unit !== 'ftin') el.step = UNIT_STEP[unit] || '0.1';
+    });
+    ['tileL', 'tileW'].forEach(id => {
+        const el = document.getElementById(id);
+        el.type = unit === 'ftin' ? 'text' : 'number';
+        if (unit !== 'ftin') el.step = UNIT_STEP[unit] || '0.1';
+    });
+    // Only once the boxes accept text, or "1'11\"" is rejected and lost.
+    syncTileFields();
+    ['openW', 'openH', 'openX', 'openY'].forEach(id => {
+        document.getElementById(id).placeholder = unit === 'ftin' ? "10'6\"" : '';
     });
 
+    setLang(currentLang); // captions carry the unit, so they have to be redrawn
     calculateAndDraw();
 }
 
@@ -1414,6 +1475,11 @@ function captureModeInputs() {
         const el = document.getElementById(id);
         if (el) snap[id] = el.value;
     }
+    // Tile size travels as feet, so a unit change while this mode is parked
+    // can't bring its numbers back in the wrong unit.
+    readTileFt('tileL', 'L');
+    readTileFt('tileW', 'W');
+    snap.tileFt = { ...tileFt };
     return snap;
 }
 
@@ -1422,6 +1488,10 @@ function restoreModeInputs(snap) {
     for (const id of MODE_INPUT_IDS) {
         const el = document.getElementById(id);
         if (el && snap[id] !== undefined) el.value = snap[id];
+    }
+    if (snap.tileFt) {
+        tileFt = { ...snap.tileFt };
+        syncTileFields();
     }
 }
 
@@ -1549,8 +1619,8 @@ function renderRoomsEditor() {
     head.className = rooms.length > 1 ? 'room-row room-head has-actions' : 'room-row room-head';
     head.innerHTML = `
         <span>${currentMode === 'wall' ? 'Wall name' : 'Room name'}</span>
-        <span>${currentMode === 'wall' ? t.dimLenWall : t.dimLenFloor}</span>
-        <span>${currentMode === 'wall' ? t.dimWidWall : t.dimWidFloor}</span>
+        <span>${(currentMode === 'wall' ? t.dimLenWall : t.dimLenFloor) + unitSuffix()}</span>
+        <span>${(currentMode === 'wall' ? t.dimWidWall : t.dimWidFloor) + unitSuffix()}</span>
         ${rooms.length > 1 ? '<span></span><span></span>' : ''}
     `;
     container.appendChild(head);
@@ -1581,7 +1651,7 @@ function renderRoomsEditor() {
         const mk = (field, value, title, isName) => {
             const inp = document.createElement('input');
             inp.type = isName ? 'text' : (inputUnit === 'ftin' ? 'text' : 'number');
-            if (!isName && inputUnit !== 'ftin') { inp.step = '0.1'; inp.min = '0'; }
+            if (!isName && inputUnit !== 'ftin') { inp.step = UNIT_STEP[inputUnit] || '0.1'; inp.min = '0'; }
             if (!isName) inp.inputMode = inputUnit === 'ftin' ? 'text' : 'decimal';
             inp.value = value;
             inp.title = title;
@@ -1599,11 +1669,11 @@ function renderRoomsEditor() {
         nameIn.onchange = () => calculateAndDraw();
         row.appendChild(nameIn);
 
-        const lIn = mk('roomL', fromFt(r.roomL), currentMode === 'wall' ? t.dimLenWall : t.dimLenFloor, false);
+        const lIn = mk('roomL', fromFt(r.roomL), (currentMode === 'wall' ? t.dimLenWall : t.dimLenFloor) + unitSuffix(), false);
         lIn.onchange = (e) => updateRoomField(r.id, 'roomL', e.target.value);
         row.appendChild(lIn);
 
-        const wIn = mk('roomW', fromFt(r.roomW), currentMode === 'wall' ? t.dimWidWall : t.dimWidFloor, false);
+        const wIn = mk('roomW', fromFt(r.roomW), (currentMode === 'wall' ? t.dimWidWall : t.dimWidFloor) + unitSuffix(), false);
         wIn.onchange = (e) => updateRoomField(r.id, 'roomW', e.target.value);
         row.appendChild(wIn);
 
@@ -1707,7 +1777,7 @@ function renderOpeningChips() {
     for (const o of openings) {
         const chip = document.createElement('div');
         chip.style.cssText = 'display:flex; align-items:center; gap:6px; background:#fef3c7; border:1px solid #fbbf24; border-radius:16px; padding:4px 6px 4px 12px; font-size:13px; color:#78350f;';
-        chip.innerHTML = `<span>${o.name} — ${fromFt(o.w)}×${fromFt(o.h)} @ ${fromFt(o.x)},${fromFt(o.y)}</span>`;
+        chip.innerHTML = `<span>${o.name} — ${fromFt(o.w)}×${fromFt(o.h)}${unitToken()} @ ${fromFt(o.x)},${fromFt(o.y)}</span>`;
         const rmBtn = document.createElement('button');
         rmBtn.type = 'button';
         rmBtn.textContent = '✕';
@@ -1778,7 +1848,7 @@ function renderRoomsAndCombinedTotal(tileL, tileW, spacerFt, piecesPerBox, handl
 
         const subCaption = document.createElement('div');
         subCaption.style.cssText = 'font-size:11px; color:#64748b; margin-top:6px;';
-        subCaption.textContent = `${fromFt(room.roomL)}×${fromFt(room.roomW)} · ${piecesToBuy} pcs`;
+        subCaption.textContent = `${fromFt(room.roomL)}×${fromFt(room.roomW)}${unitToken()} · ${piecesToBuy} pcs`;
         card.appendChild(subCaption);
 
         gallery.appendChild(card);
@@ -1852,7 +1922,7 @@ function downloadReport() {
 
         roomsRows += `<tr>
             <td><b>${r.name}</b>${isActive && openings.length ? ' <span style="color:#b45309;">(has openings)</span>' : ''}</td>
-            <td>${fromFt(r.roomL)} × ${fromFt(r.roomW)}</td>
+            <td>${fromFt(r.roomL)} × ${fromFt(r.roomW)}${unitToken()}</td>
             <td>${roomNet.toFixed(1)}</td>
             <td>${rg.fullTiles}</td>
             <td>${rg.cutTiles}</td>
@@ -1864,7 +1934,7 @@ function downloadReport() {
         roomImagesHtml += `<div class="room-card">
             <div class="room-name">${r.name}</div>
             <img src="${roomImg}" alt="${r.name} layout">
-            <div class="room-meta">${fromFt(r.roomL)} × ${fromFt(r.roomW)} &nbsp;·&nbsp; ${rg.fullTiles} full + ${rg.cutTiles} cut = <b>${pieces} pcs</b></div>
+            <div class="room-meta">${fromFt(r.roomL)} × ${fromFt(r.roomW)}${unitToken()} &nbsp;·&nbsp; ${rg.fullTiles} full + ${rg.cutTiles} cut = <b>${pieces} pcs</b></div>
         </div>`;
     }
 
@@ -1925,7 +1995,7 @@ function downloadReport() {
 
     const compareSectionHtml = `
         <h3>${t.reportCompareTitle}</h3>
-        <div class="meta">${t.reportCompareFor}: <b>${activeRoomName}</b> (${fromFt(roomL)} × ${fromFt(roomW)})</div>
+        <div class="meta">${t.reportCompareFor}: <b>${activeRoomName}</b> (${fromFt(roomL)} × ${fromFt(roomW)}${unitToken()})</div>
         <table>
             <thead><tr>
                 <th>${t.col_layout}</th><th>${t.col_full}</th><th>${t.col_cut}</th>
@@ -1939,8 +2009,8 @@ function downloadReport() {
 
     const openingsTable = openings.length ? `
         <h3>Openings Deducted</h3>
-        <table><thead><tr><th>Name</th><th>Size</th><th>Position (from bottom-left)</th><th>Area</th></tr></thead><tbody>
-        ${openings.map(o => `<tr><td>${o.name}</td><td>${fromFt(o.w)} × ${fromFt(o.h)}</td><td>${fromFt(o.x)} from left, ${fromFt(o.y)} from bottom</td><td>${(o.w * o.h).toFixed(2)} sq.ft</td></tr>`).join('')}
+        <table><thead><tr><th>Name</th><th>Size${unitSuffix()}</th><th>Position (from bottom-left)</th><th>Area</th></tr></thead><tbody>
+        ${openings.map(o => `<tr><td>${o.name}</td><td>${fromFt(o.w)} × ${fromFt(o.h)}${unitToken()}</td><td>${fromFt(o.x)} from left, ${fromFt(o.y)} from bottom</td><td>${(o.w * o.h).toFixed(2)} sq.ft</td></tr>`).join('')}
         <tr class="subtotal"><td colspan="3">Total deducted</td><td>${getOpeningsArea().toFixed(2)} sq.ft</td></tr>
         </tbody></table>` : '';
 
@@ -1976,7 +2046,7 @@ function downloadReport() {
 
         <h3>${t.reportTileSpec}</h3>
         <table>
-            <tr><td>Tile Size</td><td><b>${tileMmL} × ${tileMmW} mm</b> &nbsp;(${tileL}' × ${tileW}')</td></tr>
+            <tr><td>Tile Size</td><td><b>${tileMmL} × ${tileMmW} mm</b> &nbsp;(${tileL.toFixed(3)}' × ${tileW.toFixed(3)}')</td></tr>
             <tr><td>Tile Area (each)</td><td>${(tileL * tileW).toFixed(3)} sq.ft</td></tr>
             <tr><td>Pieces per Box</td><td>${piecesPerBox}</td></tr>
             <tr><td>Box Coverage</td><td>${(piecesPerBox * tileL * tileW).toFixed(2)} sq.ft / box</td></tr>
@@ -1992,7 +2062,7 @@ function downloadReport() {
         <h3>${t.reportRoomBreakdown}</h3>
         <table>
             <thead><tr>
-                <th>${currentMode === 'wall' ? 'Wall' : 'Room'}</th><th>Size</th><th>Net Area (sq.ft)</th>
+                <th>${currentMode === 'wall' ? 'Wall' : 'Room'}</th><th>Size${unitSuffix()}</th><th>Net Area (sq.ft)</th>
                 <th>Full</th><th>Cut</th><th>Total pcs</th><th>Boxes if alone</th>
             </tr></thead>
             <tbody>
