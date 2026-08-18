@@ -604,6 +604,10 @@ const I18N = {
         reportTileSpec: 'Tile Specification',
         reportRoomBreakdown: 'Room-wise Breakdown',
         reportGrandTotal: 'Grand Total Order',
+        reportCompareTitle: 'Layout Comparison — All Alignments & Tile Directions',
+        reportCompareFor: 'Compared against',
+        reportCompareSelected: '← selected',
+        reportCompareNote: 'Every alignment is shown at both tile directions. The alignment and tile direction marked \u2190 selected are the ones used for the order quantities and the room drawings above.',
         piecesPerBox: 'Pieces per Box (pcs/box)',
         boxCoverageAuto: 'Box Coverage (auto sq.ft)',
         handling: 'Handling/Breakage Buffer %',
@@ -1873,6 +1877,66 @@ function downloadReport() {
     const tileMmL = Math.round(tileL * MM_PER_FT);
     const tileMmW = Math.round(tileW * MM_PER_FT);
 
+    // --- Layout comparison, same data the on-screen comparison shows ---
+    // The active room is the one the comparison is run against, exactly as on
+    // screen; the alignment/direction actually ordered is flagged in the table.
+    const cmp = buildLayoutComparison(t, roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox);
+    const activeRoomName = getActiveRoom().name;
+
+    // Renders one comparison option at print resolution. Smaller than the room
+    // drawings - there are up to ten of them and they are for eyeballing where
+    // the cuts land, not for measuring off.
+    function renderCompareImage(r) {
+        const maxPx = 230;
+        const scale = Math.min(maxPx / roomL, maxPx / roomW);
+        const c = document.createElement('canvas');
+        c.width = roomL * scale;
+        c.height = roomW * scale;
+        drawGrid(c, r.cells, scale, spacerFt, false, r.tileL, r.tileW, getPrimaryOpeningRects(roomW));
+        return c.toDataURL('image/png');
+    }
+
+    // Flags the row that matches what the rest of the report was costed on.
+    const isSelectedRow = r => r.key === layoutType
+        && Math.abs(r.tileL - tileL) < 0.01 && Math.abs(r.tileW - tileW) < 0.01;
+
+    let compareRows = '';
+    let compareImagesHtml = '';
+    for (const r of cmp.rows) {
+        const isBest = r.minSliver === cmp.bestSliver;
+        const selected = isSelectedRow(r);
+        const risky = r.sliverRatio < 0.33;
+        const tags = `${isBest ? ' <b style="color:#0f766e;">' + t.bestTag + '</b>' : ''}${selected ? ' <b style="color:#2563eb;">' + t.reportCompareSelected + '</b>' : ''}`;
+        compareRows += `<tr class="${selected ? 'selected-row' : (isBest ? 'best-row' : '')}">
+            <td>${r.label}${tags}</td>
+            <td>${r.fullTiles}</td>
+            <td>${r.cutTiles}</td>
+            <td style="color:${risky ? '#b91c1c' : '#0f766e'}; font-weight:700;">${(r.minSliver * 12).toFixed(1)}"${risky ? ' ⚠️' : ''}</td>
+            <td>${r.boxesNeeded}</td>
+            ${showCost ? `<td>₹${r.estimatedCost.toLocaleString('en-IN')}</td>` : ''}
+        </tr>`;
+
+        compareImagesHtml += `<div class="room-card${selected ? ' selected-card' : (isBest ? ' best-card' : '')}">
+            <div class="room-name">${r.label}${tags}</div>
+            <img src="${renderCompareImage(r)}" alt="${r.label}">
+            <div class="room-meta" style="color:${risky ? '#b91c1c' : '#64748b'};">${r.cutTiles} cuts · smallest edge ${(r.minSliver * 12).toFixed(1)}"</div>
+        </div>`;
+    }
+
+    const compareSectionHtml = `
+        <h3>${t.reportCompareTitle}</h3>
+        <div class="meta">${t.reportCompareFor}: <b>${activeRoomName}</b> (${fromFt(roomL)} × ${fromFt(roomW)})</div>
+        <table>
+            <thead><tr>
+                <th>${t.col_layout}</th><th>${t.col_full}</th><th>${t.col_cut}</th>
+                <th>${t.col_sliver}</th><th>${t.col_boxes}</th>${showCost ? `<th>${t.col_cost}</th>` : ''}
+            </tr></thead>
+            <tbody>${compareRows}</tbody>
+        </table>
+        <div class="note">${t.reportCompareNote}</div>
+        <div class="note">${t.layoutCompareNote}</div>
+        <div class="compare-gallery">${compareImagesHtml}</div>`;
+
     const openingsTable = openings.length ? `
         <h3>Openings Deducted</h3>
         <table><thead><tr><th>Name</th><th>Size</th><th>Position (from bottom-left)</th><th>Area</th></tr></thead><tbody>
@@ -1897,6 +1961,12 @@ function downloadReport() {
         .room-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
         .room-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
         .room-meta { font-size: 12px; color: #64748b; margin-top: 6px; }
+        .compare-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 14px 0; }
+        .best-row { background: #ecfdf5; }
+        .selected-row { background: #eff6ff; font-weight: 700; }
+        .best-card { border-color: #10b981; background: #f0fdf4; }
+        .selected-card { border: 2px solid #2563eb; background: #eff6ff; }
+        .note { font-size: 12px; color: #64748b; background: #f8fafc; padding: 8px 10px; border-radius: 6px; margin: 8px 0; }
         .legend { display:flex; gap:18px; justify-content:center; font-size:12px; margin:10px 0 4px; }
         .sw { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:5px; }
         @media print { button { display: none; } h3 { page-break-after: avoid; } }
@@ -1953,6 +2023,8 @@ function downloadReport() {
             ${openings.length ? '<span><span class="sw" style="background:#fff; border:2px dashed #b45309;"></span>Opening</span>' : ''}
         </div>
         <div class="room-gallery">${roomImagesHtml}</div>
+
+        ${compareSectionHtml}
 
         <div style="margin-top:24px; font-size:11px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:10px;">
             Cut pieces consume a full source tile. Pieces-per-box is a typical value — confirm against the printed box label before ordering.
@@ -2081,12 +2153,10 @@ function calculateAndDraw() {
     }
 }
 
-function compareLayouts() {
-    const t = I18N[currentLang];
-    const inputs = readInputsOrShowError(t);
-    if (!inputs) return;
-    const { roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox } = inputs;
-
+// Every alignment crossed with every meaningful tile orientation, evaluated
+// against one room. Shared by the on-screen comparison and the printed report
+// so the two can never drift apart.
+function buildLayoutComparison(t, roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox) {
     const layoutTypes = [
         { key: 'center', label: t.opt_center },
         { key: 'tl', label: t.opt_tl },
@@ -2109,9 +2179,12 @@ function compareLayouts() {
     // per-card rotate button can re-evaluate a single card on demand, instead
     // of rebuilding the whole comparison.
     function evaluateLayout(ltKey, baseLabel, tL, tW) {
+        // Read the tag off the geometry, not off which way round the fields
+        // happen to be typed - otherwise entering a 1x2 tile prints "long side
+        // along length" for the option where the long side runs across.
         const tag = isSquare
             ? ''
-            : (Math.abs(tL - tileL) < 0.01 ? ` — ${t.orientLong}` : ` — ${t.orientShort}`);
+            : (tL >= tW ? ` — ${t.orientLong}` : ` — ${t.orientShort}`);
         const { fullTiles, cutTiles, cells } = simulateGrid(ltKey, roomL, roomW, tL, tW, spacerFt, getPrimaryOpeningRects(roomW));
         const order = computeOrder(fullTiles, cutTiles, tL, tW, roomL, roomW, piecesPerBox, handlingPct, ratePerBox, roomL * roomW - getOpeningsArea());
 
@@ -2144,6 +2217,18 @@ function compareLayouts() {
 
     // Best = the layout whose worst edge piece is the LARGEST (most workable).
     const bestSliver = Math.max(...rows.map(r => r.minSliver));
+
+    return { rows, bestSliver, isSquare, evaluateLayout };
+}
+
+function compareLayouts() {
+    const t = I18N[currentLang];
+    const inputs = readInputsOrShowError(t);
+    if (!inputs) return;
+    const { roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox } = inputs;
+
+    const { rows, bestSliver, isSquare, evaluateLayout } =
+        buildLayoutComparison(t, roomL, roomW, tileL, tileW, spacerFt, piecesPerBox, handlingPct, ratePerBox);
 
     const showCost = ratePerBox > 0;
     let html = `<thead><tr style="background:#f1f5f9; text-align:left;">
