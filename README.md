@@ -22,16 +22,23 @@ gets laid on site.
 - **Layout comparison** across 5 alignments × both tile orientations. Ranked by
   *smallest edge piece*, not box count — alignment never changes how many tiles
   you need, only how thin the edge slivers are. Orientation does change the count.
+  Each option carries its own **⟳ Rotate 90°** button, so one card can be flipped
+  and compared in place without disturbing the others.
 - **Openings** (windows, doors, fixtures) deducted from wall tiling, measured from
   the bottom-left corner the way a mason measures.
 - **Skirting** quantity, calculated from strips cut out of the field tile.
 - **Multiple rooms** pooled into one order, showing what pooling saves versus
   ordering room by room.
-- **Units**: ft, ft-in (`10'6"`), inch, metre, mm — for both input and display.
-  Feet is the internal canonical unit, so switching never loses precision.
+- **Units**: mm by default — that is what the box label, the tape on site and the
+  mason all speak in. Also ft, ft-in (`10'6"`), inch and metre, for both input and
+  display, switchable at any time. Feet is the internal canonical unit, so
+  switching never loses precision, and every field caption carries the unit in
+  force. Areas and box coverage stay in sq.ft, the unit tiles are sold by.
 - **Tile photos**: upload several pattern variants; adjacent tiles never repeat
   the same face.
-- **Printable report** with per-room dimensioned drawings.
+- **Printable report** with per-room dimensioned drawings, plus the full layout
+  comparison — every alignment at both tile directions, with the one actually
+  ordered flagged.
 
 ## Running it
 
